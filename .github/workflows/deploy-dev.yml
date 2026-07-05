@@ -1,0 +1,114 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST_DEV }}
+      KOMUNICARE_URL: ${{ secrets.KOMUNICARE_URL_DEV }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Validate Docker image configuration
+        run: |
+          if [ -z "$IMAGE_NAME" ]; then
+            echo "Set the DOCKER_IMAGE_NAME repository variable before running this workflow."
+            exit 1
+          fi
+
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "Set the DEPLOY_HOST_DEV repository secret before running this workflow."
+            exit 1
+          fi
+
+          if [ -z "$KOMUNICARE_URL" ]; then
+            echo "Set the KOMUNICARE_URL_DEV repository secret before running this workflow."
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to Docker Hub
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        env:
+          IMAGE_TAG: dev
+        run: |
+          docker build --no-cache -t "$IMAGE_NAME:$IMAGE_TAG" .
+          docker push "$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ec2-user
+          key: ${{ secrets.KOMUNICARE }}
+          script: |
+            IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            MP_ENV_FILE="/home/ec2-user/komunicare-api.dev.env"
+            if [ ! -f "$MP_ENV_FILE" ]; then
+              echo "Mercado Pago dev env file is missing."
+              exit 1
+            fi
+
+            set -a
+            . "$MP_ENV_FILE"
+            set +a
+
+            case "$MERCADOPAGO_ACCESS_TOKEN" in
+              APP_USR-*) ;;
+              *)
+                echo "Mercado Pago dev requires APP_USR credentials."
+                exit 1
+                ;;
+            esac
+
+            MP_SELLER_EMAIL=$(curl --silent \
+              --header "Authorization: Bearer $MERCADOPAGO_ACCESS_TOKEN" \
+              https://api.mercadopago.com/users/me \
+              | sed -n 's/.*"email":"\([^"]*\)".*/\1/p')
+
+            case "$MP_SELLER_EMAIL" in
+              *@testuser.com) ;;
+              *)
+                echo "Mercado Pago dev seller must be a TEST user."
+                exit 1
+                ;;
+            esac
+
+            # Limpiar completamente el contenedor y la imagen anterior
+            docker stop komunicare-api || true
+            docker rm komunicare-api || true
+            docker rmi "$IMAGE_NAME:latest" || true
+            docker pull "$IMAGE_NAME:dev"
+            docker run -d -p 80:10010 --name komunicare-api \
+              --env-file "$MP_ENV_FILE" \
+              -e MONGO_URL="${{ secrets.DATABASE_URL_DEV_API }}" \
+              -e API_SESSION_SECRET="${{ secrets.API_SESSION_SECRET }}" \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              -e BLOB_PUBLIC_CONTAINER="dev-public" \
+              -e BLOB_MEDIA_CONTAINER="dev-cblob" \
+              -e PAYPAL_API_URL="https://api-m.sandbox.paypal.com/v1" \
+              -e PAYPAL_API_CLIENT_ID="${{ secrets.PAYPAL_API_CLIENT_ID_DEV }}" \
+              -e PAYPAL_API_CLIENT_SECRET="${{ secrets.PAYPAL_API_CLIENT_SECRET_DEV }}" \
+              -e PAYPAL_WEBHOOK_ID="${{ secrets.PAYPAL_WEBHOOK_ID_DEV }}" \
+              -e MERCADOPAGO_TEST_MODE="true" \
+              -e MERCADOPAGO_HOSTED_TEST_MODE="false" \
+              -e SES_PASSWORD="${{ secrets.SES_PASSWORD }}" \
+              -e OPEN_AI_API_KEY="${{ secrets.OPEN_AI_API_KEY }}" \
+              -e KOMUNICARE_URL="${{ env.KOMUNICARE_URL }}" \
+              -e AI_ENGINE_LAMBDA_URL="${{ secrets.AI_ENGINE_LAMBDA_URL }}" \
+              -e AI_ENGINE_LAMBDA_API_KEY="${{ secrets.AI_ENGINE_LAMBDA_API_KEY }}" \
+              "$IMAGE_NAME:dev"

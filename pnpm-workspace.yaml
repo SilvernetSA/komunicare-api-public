@@ -1,0 +1,14 @@
+packages:
+  - '.'
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@scarf/scarf'
+  - fsevents
+  - husky
+  - nodemon
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': true
+  fsevents: true
+  husky: true
+  nodemon: true

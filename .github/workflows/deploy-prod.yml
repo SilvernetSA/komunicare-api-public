@@ -1,0 +1,70 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST_PROD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Validate Docker image configuration
+        run: |
+          if [ -z "$IMAGE_NAME" ]; then
+            echo "Set the DOCKER_IMAGE_NAME repository variable before running this workflow."
+            exit 1
+          fi
+
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "Set the DEPLOY_HOST_PROD repository secret before running this workflow."
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to Docker Hub
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        env:
+          IMAGE_TAG: latest
+        run: |
+          docker build -t "$IMAGE_NAME:$IMAGE_TAG" .
+          docker push "$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ec2-user
+          key: ${{ secrets.KOMUNICARE }}
+          script: |
+            IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            docker pull "$IMAGE_NAME:latest"
+            docker stop komunicare-api || true
+            docker rm komunicare-api || true
+            docker run -d -p 80:10010 --name komunicare-api \
+              -e MONGO_URL="${{ secrets.DATABASE_URL_PROD }}" \
+              -e API_SESSION_SECRET="${{ secrets.API_SESSION_SECRET }}" \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              -e PAYPAL_API_URL="https://api-m.paypal.com/v1" \
+              -e PAYPAL_API_CLIENT_ID="${{ secrets.PAYPAL_API_CLIENT_ID_PROD }}" \
+              -e PAYPAL_API_CLIENT_SECRET="${{ secrets.PAYPAL_API_CLIENT_SECRET_PROD }}" \
+              -e PAYPAL_WEBHOOK_ID="${{ secrets.PAYPAL_WEBHOOK_ID_PROD }}" \
+              -e MERCADOPAGO_ACCESS_TOKEN="${{ secrets.MERCADOPAGO_ACCESS_TOKEN_PROD }}" \
+              -e MERCADOPAGO_SECRET_KEY="${{ secrets.MERCADOPAGO_SECRET_KEY_PROD }}" \
+              -e KOMUNICARE_URL="https://komuni.care" \
+              -e AI_ENGINE_LAMBDA_URL="${{ secrets.AI_ENGINE_LAMBDA_URL }}" \
+              -e AI_ENGINE_LAMBDA_API_KEY="${{ secrets.AI_ENGINE_LAMBDA_API_KEY }}" \
+              "$IMAGE_NAME:latest"
