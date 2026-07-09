@@ -76,6 +76,12 @@ export class UserModel {
 
   @ApiPropertyOptional({ example: false })
   emailConfirmed?: boolean;
+
+  @ApiPropertyOptional({ example: false })
+  isManuallyBlocked?: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: null })
+  lockedUntil?: Date | null;
 }
 
 export class UserActionResponse {

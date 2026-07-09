@@ -28,6 +28,9 @@ export interface UserPersistenceDocument extends Document {
   isFirstLogin?: boolean;
   gender?: string;
   isByBackOffice?: boolean;
+  loginAttempts?: number;
+  lockedUntil?: Date | null;
+  isManuallyBlocked?: boolean;
   communicators?: unknown[];
   boards?: unknown[];
   settings?: unknown;
@@ -121,6 +124,18 @@ const userSchema = new Schema<UserPersistenceDocument, UserPersistenceModel>(
       type: Boolean,
       default: false,
     },
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockedUntil: {
+      type: Date,
+      default: null,
+    },
+    isManuallyBlocked: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     toObject: {
@@ -187,32 +202,62 @@ userSchema.path('email').validate(
   'Email already exists',
 );
 
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1000;
+
 userSchema.statics.authenticate = async function (
   email: string,
   password: string,
   skipBoards = false,
 ): Promise<UserPersistenceDocument> {
+  const userForCheck = await this.findOne({ email }).exec();
+  if (!userForCheck) {
+    const error: any = new Error('User not found.');
+    error.status = 401;
+    throw error;
+  }
+
+  if (userForCheck.isManuallyBlocked) {
+    const error: any = new Error('Account has been blocked. Contact an administrator.');
+    error.status = 403;
+    throw error;
+  }
+
+  if (userForCheck.lockedUntil && userForCheck.lockedUntil > new Date()) {
+    const minutesLeft = Math.ceil((userForCheck.lockedUntil.getTime() - Date.now()) / 60000);
+    const error: any = new Error(`Account temporarily locked. Try again in ${minutesLeft} minute(s).`);
+    error.status = 403;
+    throw error;
+  }
+
+  const isMatch = await bcrypt.compare(password, userForCheck.password || '');
+  if (!isMatch) {
+    const attempts = (userForCheck.loginAttempts || 0) + 1;
+    const update: Record<string, any> = { loginAttempts: attempts };
+
+    if (attempts >= MAX_LOGIN_ATTEMPTS) {
+      update.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
+      update.loginAttempts = 0;
+    }
+
+    await this.updateOne({ email }, update).exec();
+
+    const remaining = MAX_LOGIN_ATTEMPTS - attempts;
+    const suffix = remaining > 0 ? ` (${remaining} attempt(s) left before lockout)` : ' Account locked for 24 hours.';
+    const error: any = new Error(`Wrong email or password.${suffix}`);
+    error.status = 401;
+    throw error;
+  }
+
+  await this.updateOne({ email }, { loginAttempts: 0, lockedUntil: null }).exec();
+
   let query = this.findOne({ email });
   if (!skipBoards) {
     query = query.populate('communicators').populate('boards');
   }
   query = query.populate('settings');
 
-  const user = await query.exec();
-  if (!user) {
-    const error: any = new Error('User not found.');
-    error.status = 401;
-    throw error;
-  }
-
-  const isMatch = await bcrypt.compare(password, user.password || '');
-  if (!isMatch) {
-    const error: any = new Error('Wrong email or password.');
-    error.status = 401;
-    throw error;
-  }
-
-  return user;
+  return query.exec() as Promise<UserPersistenceDocument>;
 };
 
 userSchema.statics.getById = async function (

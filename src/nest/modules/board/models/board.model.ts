@@ -13,6 +13,9 @@ export class BoardModel {
   @ApiPropertyOptional({ example: false })
   isPublic?: boolean;
 
+  @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
+  publicSourceId?: string;
+
   @ApiPropertyOptional({
     type: 'array',
     items: { type: 'object', additionalProperties: true },
@@ -73,6 +76,72 @@ export class PaginatedBoardModelResponse {
 
   @ApiProperty({ type: () => BoardModel, isArray: true })
   data!: BoardModel[];
+}
+
+export class PublicBoardReportWhistleblowerModel {
+  @ApiPropertyOptional({ example: 'Juan Perez' })
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'juan@example.com' })
+  email?: string;
+
+  @ApiPropertyOptional({ example: 'es-AR' })
+  language?: string;
+}
+
+export class PublicBoardReportModel {
+  @ApiProperty({ example: '686d1b28f8de287278f6bc11' })
+  id!: string;
+
+  @ApiProperty({ example: '686d1b28f8de287278f6bc10' })
+  boardId!: string;
+
+  @ApiProperty({ example: 'Tablero Komunicare' })
+  boardName!: string;
+
+  @ApiProperty({ example: 'Komunicare' })
+  author!: string;
+
+  @ApiProperty({ example: 'owner@example.com' })
+  ownerEmail!: string;
+
+  @ApiProperty({ example: 'Contenido inapropiado' })
+  reason!: string;
+
+  @ApiProperty({ example: 'https://komuni.care/board/686d1b28f8de287278f6bc10' })
+  url!: string;
+
+  @ApiProperty({ type: () => PublicBoardReportWhistleblowerModel })
+  whistleblower!: PublicBoardReportWhistleblowerModel;
+
+  @ApiProperty({ example: 'pending' })
+  status!: string;
+
+  @ApiProperty({ type: String, example: '2026-07-08T16:00:00.000Z' })
+  createdAt!: Date | string;
+}
+
+export class PaginatedPublicBoardReportModelResponse {
+  @ApiProperty({ example: 3 })
+  total!: number;
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 10 })
+  limit!: number;
+
+  @ApiProperty({ example: 0 })
+  offset!: number;
+
+  @ApiProperty({ example: '-createdAt' })
+  sort!: string;
+
+  @ApiProperty({ example: '' })
+  search!: string;
+
+  @ApiProperty({ type: () => PublicBoardReportModel, isArray: true })
+  data!: PublicBoardReportModel[];
 }
 
 export class BoardActionResponse {

@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -40,6 +41,26 @@ export class UpdateCommunicatorDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ example: '../logo.svg' })
+  @IsOptional()
+  @IsString()
+  caption?: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
+
+  @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
+  @IsOptional()
+  @IsString()
+  publicSourceId?: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 
   @ApiPropertyOptional({ example: 'komunicare' })
   @IsOptional()

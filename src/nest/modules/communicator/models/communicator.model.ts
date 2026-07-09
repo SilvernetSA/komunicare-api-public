@@ -21,6 +21,15 @@ export class CommunicatorModel {
   @ApiPropertyOptional({ example: 'Comunicador principal del usuario' })
   description?: string;
 
+  @ApiPropertyOptional({ example: false })
+  isPublic?: boolean;
+
+  @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
+  publicSourceId?: string;
+
+  @ApiPropertyOptional({ example: false })
+  isDefault?: boolean;
+
   @ApiProperty({ example: 'komunicare' })
   rootBoard!: string;
 
@@ -35,7 +44,7 @@ export class CommunicatorModel {
 
   @ApiPropertyOptional({
     example: 'komunicare',
-    enum: ['komunicare', 'cboard', 'universal_core'],
+    enum: ['komunicare'],
   })
   copySource?: string;
 

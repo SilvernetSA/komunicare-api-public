@@ -126,4 +126,12 @@ export class UserRepository {
   async findByEmailWithoutPopulate(email: string): Promise<any | null> {
     return this.accountPersistence.findUserByEmailWithoutPopulate(email);
   }
+
+  async blockById(id: string): Promise<any | null> {
+    return this.accountPersistence.blockUserById(id);
+  }
+
+  async unblockById(id: string): Promise<any | null> {
+    return this.accountPersistence.unblockUserById(id);
+  }
 }

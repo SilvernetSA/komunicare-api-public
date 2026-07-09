@@ -305,6 +305,22 @@ export class AccountPersistenceService {
     ).exec();
   }
 
+  async blockUserById(id: string): Promise<any | null> {
+    return UserPersistenceEntity.findOneAndUpdate(
+      { _id: id },
+      { isManuallyBlocked: true },
+      { new: true },
+    ).exec();
+  }
+
+  async unblockUserById(id: string): Promise<any | null> {
+    return UserPersistenceEntity.findOneAndUpdate(
+      { _id: id },
+      { isManuallyBlocked: false, loginAttempts: 0, lockedUntil: null },
+      { new: true },
+    ).exec();
+  }
+
   async findUserByEmailWithoutPopulate(email: string): Promise<any | null> {
     return UserPersistenceEntity.findOne({ email }).exec();
   }

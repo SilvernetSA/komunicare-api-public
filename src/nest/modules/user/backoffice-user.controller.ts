@@ -177,4 +177,34 @@ export class BackofficeUserController extends BaseController {
       'Could not resend confirmation email',
     );
   }
+
+  @Post(':id/block')
+  @HttpCode(200)
+  @ApiSuccessResponse(UserActionResponse, 'User blocked')
+  @ApiErrorResponses('unauthorized', 'forbidden', 'notFound', 'internal')
+  blockUserBackoffice(
+    @Req() req: Request,
+    @Param('id') id: string,
+  ): Promise<UserActionResponse> {
+    return this.executeRequest(
+      'blockUserBackoffice',
+      () => this.userService.blockUserBackoffice(req, id),
+      'Could not block user',
+    );
+  }
+
+  @Post(':id/unblock')
+  @HttpCode(200)
+  @ApiSuccessResponse(UserActionResponse, 'User unblocked')
+  @ApiErrorResponses('unauthorized', 'forbidden', 'notFound', 'internal')
+  unblockUserBackoffice(
+    @Req() req: Request,
+    @Param('id') id: string,
+  ): Promise<UserActionResponse> {
+    return this.executeRequest(
+      'unblockUserBackoffice',
+      () => this.userService.unblockUserBackoffice(req, id),
+      'Could not unblock user',
+    );
+  }
 }

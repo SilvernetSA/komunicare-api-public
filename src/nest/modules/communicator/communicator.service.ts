@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -16,7 +17,12 @@ import {
   LegacyAuthService,
 } from '../../common/legacy-auth.service';
 import { getORQuery } from '../../common/query.util';
-import { OFFICIAL_ROOT_BOARD_IDS } from '../system-boards/system-boards.constants';
+import { BoardRepository } from '../board/board.repository';
+import {
+  OFFICIAL_ROOT_BOARD_IDS,
+  OFFICIAL_SYSTEM_BOARD_AUTHORS,
+  OFFICIAL_SYSTEM_BOARD_EMAILS,
+} from '../system-boards/system-boards.constants';
 import { CreateCommunicatorDto } from './dto/create-communicator.dto';
 import { ListCommunicatorsByEmailDto } from './dto/list-communicators-by-email.dto';
 import { UpdateCommunicatorDto } from './dto/update-communicator.dto';
@@ -27,18 +33,45 @@ import {
   PaginatedCommunicatorModelResponse,
 } from './models/communicator.model';
 
-const OFFICIAL_ROOT_BOARD_ORDER = [...OFFICIAL_ROOT_BOARD_IDS] as const;
-const OFFICIAL_ROOT_BOARD_SET = new Set<string>(OFFICIAL_ROOT_BOARD_ORDER);
-const OFFICIAL_DEFAULT_BOARDS_INCLUDED = JSON.stringify(
-  sanitizeDefaultBoardsIncluded([]),
-);
+const OFFICIAL_ROOT_BOARD_SET = new Set<string>(OFFICIAL_ROOT_BOARD_IDS);
 const CANONICAL_OFFICIAL_BOARD_IDS = new Set(['komunicare']);
+const OFFICIAL_SYSTEM_BOARD_EMAIL_SET = new Set(
+  OFFICIAL_SYSTEM_BOARD_EMAILS.map((email) => email.toLowerCase()),
+);
+const OFFICIAL_SYSTEM_BOARD_AUTHOR_SET = new Set(
+  OFFICIAL_SYSTEM_BOARD_AUTHORS.map((author) => author.toLowerCase()),
+);
+const SOURCE_REFERENCE_QUERY = {
+  $exists: true,
+  $nin: [null, ''],
+};
+const OFFICIAL_PUBLIC_COMMUNICATOR_EXCLUSIONS = [
+  { isSystemCommunicator: true },
+  { rootBoard: { $in: OFFICIAL_ROOT_BOARD_IDS } },
+  { email: { $in: OFFICIAL_SYSTEM_BOARD_EMAILS } },
+  { author: { $in: OFFICIAL_SYSTEM_BOARD_AUTHORS } },
+  { copySource: SOURCE_REFERENCE_QUERY },
+  { copySourceCommunicatorId: SOURCE_REFERENCE_QUERY },
+  { publicSourceId: SOURCE_REFERENCE_QUERY },
+];
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+  const normalized = String(value || '').trim();
+  return normalized || undefined;
+};
+
+const hasSourceReference = (value: unknown): boolean =>
+  Boolean(normalizeOptionalString(value));
+
+const toObjectIdOrValue = (value: string): Types.ObjectId | string =>
+  Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : value;
 
 @Injectable()
 export class CommunicatorService {
   constructor(
     private readonly legacyAuthService: LegacyAuthService,
     private readonly communicatorRepository: CommunicatorRepository,
+    private readonly boardRepository: BoardRepository,
   ) {}
 
   async listCommunicators(
@@ -80,20 +113,38 @@ export class CommunicatorService {
         ) as Record<string, unknown>)
       : {};
 
-    const communicators = await this.communicatorRepository.paginate(
+    return this.communicatorRepository.paginate(
       {
         ...searchQuery,
         email,
-        copySource: { $exists: true, $nin: [null, ''] },
       },
       query as any,
     );
+  }
 
-    if (communicators.total || communicators.data.length) {
-      return communicators;
-    }
+  async getPublicCommunicators(
+    req: Request,
+    query: ListCommunicatorsByEmailDto,
+  ): Promise<PaginatedCommunicatorModelResponse> {
+    await this.legacyAuthService.getAuthorizedUser(req);
 
-    return this.buildOfficialCommunicatorsFallback(query);
+    const search = query.search || '';
+    const searchQuery: Record<string, unknown> = search.length
+      ? (getORQuery(
+          ['name', 'author', 'description'],
+          search,
+          true,
+        ) as Record<string, unknown>)
+      : {};
+
+    return this.communicatorRepository.paginate(
+      {
+        ...searchQuery,
+        isPublic: true,
+        $nor: OFFICIAL_PUBLIC_COMMUNICATOR_EXCLUSIONS,
+      },
+      query as any,
+    );
   }
 
   async getCommunicator(req: Request, id: string): Promise<CommunicatorModel> {
@@ -117,17 +168,25 @@ export class CommunicatorService {
     this.legacyAuthService.assertSameUserOrAdmin(
       user,
       payload.email,
-      "You are not authorized to create a communicator for this user.",
+      'You are not authorized to create a communicator for this user.',
     );
 
     const copySource = normalizeCommunicatorCopySource(payload.copySource);
-    const copySourceCommunicatorId = payload.copySourceCommunicatorId
-      ? String(payload.copySourceCommunicatorId).trim()
-      : undefined;
+    const copySourceCommunicatorId = normalizeOptionalString(
+      payload.copySourceCommunicatorId,
+    );
+    const publicSourceId = normalizeOptionalString(payload.publicSourceId);
 
     if (payload.copySource && !copySource) {
       throw new BadRequestException('Invalid communicator copy source.');
     }
+
+    this.assertCommunicatorCanBePublic(
+      payload.isPublic,
+      copySource,
+      copySourceCommunicatorId,
+      publicSourceId,
+    );
 
     if (copySource) {
       const existingCopy = await this.communicatorRepository.findOne({
@@ -145,13 +204,40 @@ export class CommunicatorService {
       }
     }
 
+    if (publicSourceId) {
+      const existingPublicCopy = await this.communicatorRepository.findOne({
+        email: payload.email,
+        publicSourceId,
+      });
+
+      if (existingPublicCopy) {
+        throw new ConflictException({
+          message:
+            'A personal copy for this public communicator already exists for this user.',
+          existingCommunicatorId: String(
+            existingPublicCopy._id || existingPublicCopy.id || '',
+          ),
+          publicSourceId,
+        });
+      }
+    }
+
+    // A communicator created from scratch (not a copy of a system/public
+    // communicator) must start empty. Only copies force-include the fixed
+    // komunicare bundle so they keep the default board set.
+    const isCommunicatorCopy = Boolean(
+      copySource || copySourceCommunicatorId || publicSourceId,
+    );
+
     const normalizedPayload = {
       ...payload,
       defaultBoardsIncluded: sanitizeDefaultBoardsIncluded(
         payload.defaultBoardsIncluded,
+        { includeFixedDefaults: isCommunicatorCopy },
       ),
+      publicSourceId,
       copySource,
-      copySourceCommunicatorId: copySourceCommunicatorId || undefined,
+      copySourceCommunicatorId,
     };
 
     const communicator = this.communicatorRepository.create(
@@ -159,16 +245,21 @@ export class CommunicatorService {
     );
     const savedCommunicator = await this.communicatorRepository.save(communicator);
     const persistedCommunicator = savedCommunicator || communicator;
+    const persistedCommunicatorId = String(
+      persistedCommunicator._id || persistedCommunicator.id || '',
+    );
 
     return {
       success: 1,
-      id: String(persistedCommunicator._id),
+      id: persistedCommunicatorId,
       communicator: {
-        id: String(persistedCommunicator._id),
+        id: persistedCommunicatorId,
         name: persistedCommunicator.name,
         author: persistedCommunicator.author,
         email: persistedCommunicator.email,
         description: persistedCommunicator.description,
+        isPublic: persistedCommunicator.isPublic,
+        publicSourceId: persistedCommunicator.publicSourceId,
         rootBoard: persistedCommunicator.rootBoard,
         boards: persistedCommunicator.boards,
         defaultBoardsIncluded: persistedCommunicator.defaultBoardsIncluded,
@@ -193,6 +284,18 @@ export class CommunicatorService {
       payload.copySource !== undefined
         ? normalizeCommunicatorCopySource(payload.copySource)
         : communicator.copySource;
+    const nextPublicSourceId =
+      payload.publicSourceId !== undefined
+        ? normalizeOptionalString(payload.publicSourceId)
+        : normalizeOptionalString(communicator.publicSourceId);
+    const nextCopySourceCommunicatorId =
+      payload.copySourceCommunicatorId !== undefined
+        ? normalizeOptionalString(payload.copySourceCommunicatorId)
+        : normalizeOptionalString(communicator.copySourceCommunicatorId);
+    const nextIsPublic =
+      payload.isPublic !== undefined
+        ? payload.isPublic
+        : Boolean(communicator.isPublic);
     await this.authorizeCommunicatorAccess(
       req,
       nextEmail,
@@ -203,6 +306,13 @@ export class CommunicatorService {
     if (payload.copySource !== undefined && payload.copySource && !nextCopySource) {
       throw new BadRequestException('Invalid communicator copy source.');
     }
+
+    this.assertCommunicatorCanBePublic(
+      nextIsPublic,
+      nextCopySource,
+      nextCopySourceCommunicatorId,
+      nextPublicSourceId,
+    );
 
     if (nextCopySource) {
       const conflictingCopy = await this.communicatorRepository.findOne({
@@ -223,21 +333,41 @@ export class CommunicatorService {
       }
     }
 
+    if (nextPublicSourceId) {
+      const conflictingPublicCopy = await this.communicatorRepository.findOne({
+        email: nextEmail,
+        publicSourceId: nextPublicSourceId,
+        _id: { $ne: id },
+      });
+
+      if (conflictingPublicCopy) {
+        throw new ConflictException({
+          message:
+            'A personal copy for this public communicator already exists for this user.',
+          existingCommunicatorId: String(
+            conflictingPublicCopy._id || conflictingPublicCopy.id || '',
+          ),
+          publicSourceId: nextPublicSourceId,
+        });
+      }
+    }
+
     const boards = payload.boards || communicator.boards;
     let rootBoard = payload.rootBoard || communicator.rootBoard;
-    const isCommunicatorCopy = Boolean(nextCopySource);
+    const isCommunicatorCopy = Boolean(nextCopySource || nextPublicSourceId);
 
-    if (isCommunicatorCopy) {
-      const nonCanonicalBoards = (Array.isArray(boards) ? boards : [])
-        .map((boardId) => String(boardId || '').trim())
-        .filter(
-          (boardId) =>
-            Boolean(boardId) && !OFFICIAL_ROOT_BOARD_SET.has(boardId),
-        );
-
+    if (isCommunicatorCopy && !payload.rootBoard) {
+      // Only auto-correct rootBoard when not explicitly provided AND it points
+      // to a canonical system root. In that case prefer the first user-created
+      // board (board_<timestamp>) so the copy has its own entry point.
+      // System sub-boards (foodBoard, drinksBoard, …) are intentionally excluded
+      // because they are not valid personal roots.
       if (OFFICIAL_ROOT_BOARD_SET.has(String(rootBoard || ''))) {
-        if (nonCanonicalBoards.length) {
-          rootBoard = nonCanonicalBoards[0];
+        const userBoards = (Array.isArray(boards) ? boards : [])
+          .map((boardId) => String(boardId || '').trim())
+          .filter((boardId) => /^board_\d+/.test(boardId));
+        if (userBoards.length) {
+          rootBoard = userBoards[0];
         }
       }
     }
@@ -261,13 +391,21 @@ export class CommunicatorService {
       }
     }
     if (payload.copySourceCommunicatorId !== undefined) {
-      normalizedPayload.copySourceCommunicatorId =
-        payload.copySourceCommunicatorId &&
-        String(payload.copySourceCommunicatorId).trim()
-          ? String(payload.copySourceCommunicatorId).trim()
-          : undefined;
+      normalizedPayload.copySourceCommunicatorId = normalizeOptionalString(
+        payload.copySourceCommunicatorId,
+      );
+    }
+    if (payload.publicSourceId !== undefined) {
+      normalizedPayload.publicSourceId = nextPublicSourceId;
     }
     normalizedPayload.rootBoard = rootBoard;
+
+    if (payload.isDefault === true) {
+      await CommunicatorPersistenceEntity.updateMany(
+        { email: nextEmail, _id: { $ne: new Types.ObjectId(id) } },
+        { $set: { isDefault: false } },
+      );
+    }
 
     Object.keys(normalizedPayload).forEach((key) => {
       communicator[key] = normalizedPayload[key];
@@ -282,6 +420,155 @@ export class CommunicatorService {
     }
 
     return savedCommunicator as CommunicatorModel;
+  }
+
+  async copyPublicCommunicator(
+    req: Request,
+    id: string,
+  ): Promise<CreateCommunicatorResponse> {
+    const user = await this.legacyAuthService.getAuthorizedUser(req);
+    const sourceCommunicator = await this.findCommunicatorById(id);
+
+    if (
+      !sourceCommunicator.isPublic ||
+      this.isExcludedFromPublicCommunicators(sourceCommunicator)
+    ) {
+      throw new BadRequestException(
+        'Only original public communicators can be copied.',
+      );
+    }
+
+    if (user.email === sourceCommunicator.email) {
+      throw new BadRequestException(
+        'You cannot copy your own public communicator.',
+      );
+    }
+
+    const sourceCommunicatorId = String(
+      sourceCommunicator._id || sourceCommunicator.id || id,
+    ).trim();
+    const existingCopy = await this.communicatorRepository.findOne({
+      email: user.email,
+      publicSourceId: sourceCommunicatorId,
+    });
+
+    if (existingCopy) {
+      throw new ConflictException({
+        message:
+          'A personal copy for this public communicator already exists for this user.',
+        existingCommunicatorId: String(existingCopy._id || existingCopy.id || ''),
+        publicSourceId: sourceCommunicatorId,
+      });
+    }
+
+    const sourceBoardIds = this.collectCopyableBoardIds(sourceCommunicator);
+    if (!sourceBoardIds.length) {
+      throw new BadRequestException(
+        'Public communicator has no persisted boards to copy.',
+      );
+    }
+
+    const sourceBoards = await (BoardPersistenceEntity as any)
+      .find({
+        _id: {
+          $in: sourceBoardIds.map((boardId) => new Types.ObjectId(boardId)),
+        },
+      })
+      .lean()
+      .exec();
+    const sourceBoardsById = new Map<string, any>(
+      sourceBoards.map((board: any) => [String(board._id || ''), board]),
+    );
+
+    if (sourceBoardIds.some((boardId) => !sourceBoardsById.has(boardId))) {
+      throw new NotFoundException(
+        'Public communicator has missing boards and cannot be copied.',
+      );
+    }
+
+    const copiedBoardIds: string[] = [];
+    const boardIdMap = new Map<string, string>();
+
+    try {
+      for (const sourceBoardId of sourceBoardIds) {
+        const sourceBoard = sourceBoardsById.get(sourceBoardId);
+        const boardCopy = this.boardRepository.create({
+          name: sourceBoard.name,
+          author: user.name || sourceBoard.author,
+          email: user.email,
+          isPublic: false,
+          publicSourceId: sourceBoard.isPublic ? sourceBoardId : undefined,
+          tiles: sourceBoard.tiles,
+          cellSize: sourceBoard.cellSize,
+          locale: sourceBoard.locale,
+          caption: sourceBoard.caption,
+          format: sourceBoard.format,
+          description: sourceBoard.description,
+          isFixed: sourceBoard.isFixed,
+          grid: sourceBoard.grid,
+        });
+        const savedBoard = await this.boardRepository.save(boardCopy);
+        const copiedBoardId = String(
+          savedBoard._id || savedBoard.id || boardCopy._id || boardCopy.id || '',
+        ).trim();
+
+        if (!copiedBoardId) {
+          throw new InternalServerErrorException(
+            'Could not persist copied communicator boards.',
+          );
+        }
+
+        copiedBoardIds.push(copiedBoardId);
+        boardIdMap.set(sourceBoardId, copiedBoardId);
+      }
+
+      const originalBoards = Array.isArray(sourceCommunicator.boards)
+        ? sourceCommunicator.boards
+            .map((boardId: unknown) => String(boardId || '').trim())
+            .filter(Boolean)
+        : [];
+      const mappedBoards = Array.from(
+        new Set([...originalBoards, ...sourceBoardIds]),
+      )
+        .map((boardId) => boardIdMap.get(boardId))
+        .filter((boardId): boardId is string => Boolean(boardId));
+      const mappedRootBoard = boardIdMap.get(
+        String(sourceCommunicator.rootBoard || '').trim(),
+      );
+
+      if (!mappedRootBoard) {
+        throw new BadRequestException(
+          'Public communicator root board could not be mapped to the copied boards.',
+        );
+      }
+
+      return this.createCommunicator(req, {
+        name: sourceCommunicator.name,
+        author: user.name || sourceCommunicator.author,
+        email: user.email,
+        description: sourceCommunicator.description,
+        caption: sourceCommunicator.caption,
+        isPublic: false,
+        publicSourceId: sourceCommunicatorId,
+        rootBoard: mappedRootBoard,
+        boards: mappedBoards,
+        defaultBoardsIncluded: this.mapDefaultBoardsIncludedForCopy(
+          sourceCommunicator.defaultBoardsIncluded,
+          boardIdMap,
+        ) as any,
+      });
+    } catch (error) {
+      if (copiedBoardIds.length) {
+        await (BoardPersistenceEntity as any)
+          .deleteMany({
+            _id: { $in: copiedBoardIds.map(toObjectIdOrValue) },
+            email: user.email,
+          })
+          .exec();
+      }
+
+      throw error;
+    }
   }
 
   async deleteCommunicator(
@@ -410,110 +697,85 @@ export class CommunicatorService {
     return communicator;
   }
 
-  private async buildOfficialCommunicatorsFallback(
-    query: ListCommunicatorsByEmailDto,
-  ): Promise<PaginatedCommunicatorModelResponse> {
-    const allCommunicators = await this.communicatorRepository.findAll();
-    const officialCommunicatorsByRoot = new Map<string, any>();
+  private assertCommunicatorCanBePublic(
+    isPublic: boolean | undefined,
+    copySource: string | undefined,
+    copySourceCommunicatorId: string | undefined,
+    publicSourceId: string | undefined,
+  ): void {
+    if (isPublic && (copySource || copySourceCommunicatorId || publicSourceId)) {
+      throw new BadRequestException(
+        'Only original communicators can be published.',
+      );
+    }
+  }
 
-    allCommunicators.forEach((communicator) => {
-      if (!this.isOfficialCommunicatorCandidate(communicator)) {
-        return;
-      }
+  private collectCopyableBoardIds(communicator: any): string[] {
+    const collectedBoardIds = new Set<string>();
 
-      const current = officialCommunicatorsByRoot.get(communicator.rootBoard);
-      if (!current) {
-        officialCommunicatorsByRoot.set(communicator.rootBoard, communicator);
-        return;
-      }
-
-      if (
-        this.getOfficialCommunicatorPriority(communicator) >
-        this.getOfficialCommunicatorPriority(current)
-      ) {
-        officialCommunicatorsByRoot.set(communicator.rootBoard, communicator);
+    const boards = Array.isArray(communicator?.boards) ? communicator.boards : [];
+    boards.forEach((boardId: unknown) => {
+      const normalizedBoardId = String(boardId || '').trim();
+      if (Types.ObjectId.isValid(normalizedBoardId)) {
+        collectedBoardIds.add(normalizedBoardId);
       }
     });
 
-    const orderedOfficialCommunicators = OFFICIAL_ROOT_BOARD_ORDER.map(
-      (rootBoard) => officialCommunicatorsByRoot.get(rootBoard),
-    ).filter(Boolean);
+    const includedBoards = Array.isArray(communicator?.defaultBoardsIncluded)
+      ? communicator.defaultBoardsIncluded
+      : [];
+    includedBoards.forEach((entry: any) => {
+      const homeBoardId = String(entry?.homeBoard || '').trim();
+      if (Types.ObjectId.isValid(homeBoardId)) {
+        collectedBoardIds.add(homeBoardId);
+      }
+    });
 
-    const normalizedSearch = (query.search || '').trim().toLowerCase();
-    const filteredCommunicators = normalizedSearch.length
-      ? orderedOfficialCommunicators.filter((communicator) =>
-          [communicator.name, communicator.author, communicator.description]
-            .filter((value) => typeof value === 'string')
-            .some((value: string) =>
-              value.toLowerCase().includes(normalizedSearch),
-            ),
-        )
-      : orderedOfficialCommunicators;
+    const rootBoard = String(communicator?.rootBoard || '').trim();
+    if (Types.ObjectId.isValid(rootBoard)) {
+      collectedBoardIds.add(rootBoard);
+    }
 
-    const page = Number(query.page) > 0 ? Number(query.page) : 1;
-    const limit = Number(query.limit) > 0 ? Number(query.limit) : 10;
-    const offset = Number(query.offset) >= 0 ? Number(query.offset) : 0;
-    const skip = (page - 1) * limit + offset;
-    const data = filteredCommunicators
-      .slice(skip, skip + limit)
-      .map((communicator) => communicator.toJSON() as CommunicatorModel);
-
-    return {
-      total: filteredCommunicators.length,
-      page,
-      limit,
-      offset,
-      sort: query.sort || '-_id',
-      search: query.search || '',
-      data,
-    };
+    return Array.from(collectedBoardIds);
   }
 
-  private isOfficialCommunicatorCandidate(communicator: any): boolean {
-    if (!communicator || typeof communicator !== 'object') {
-      return false;
-    }
+  private mapDefaultBoardsIncludedForCopy(
+    defaultBoardsIncluded: unknown,
+    boardIdMap: Map<string, string>,
+  ): Record<string, unknown>[] {
+    const sourceDefaultBoards = Array.isArray(defaultBoardsIncluded)
+      ? defaultBoardsIncluded
+      : [];
 
-    if (communicator.copySource) {
-      return false;
-    }
+    return sourceDefaultBoards
+      .filter(
+        (entry): entry is Record<string, unknown> =>
+          Boolean(entry) && typeof entry === 'object',
+      )
+      .map((entry) => {
+        const homeBoard = normalizeOptionalString(entry.homeBoard);
+        return {
+          ...entry,
+          ...(homeBoard && boardIdMap.has(homeBoard)
+            ? { homeBoard: boardIdMap.get(homeBoard) }
+            : {}),
+        };
+      });
+  }
 
-    if (!OFFICIAL_ROOT_BOARD_SET.has(communicator.rootBoard)) {
-      return false;
-    }
-
-    const boards = Array.isArray(communicator.boards) ? communicator.boards : [];
-    const hasCanonicalBoards = boards.includes(communicator.rootBoard);
-
-    if (!hasCanonicalBoards) {
-      return false;
-    }
+  private isExcludedFromPublicCommunicators(communicator: any): boolean {
+    const email = String(communicator?.email || '').trim().toLowerCase();
+    const author = String(communicator?.author || '').trim().toLowerCase();
+    const rootBoard = String(communicator?.rootBoard || '').trim();
 
     return (
-      JSON.stringify(
-        sanitizeDefaultBoardsIncluded(communicator.defaultBoardsIncluded),
-      ) === OFFICIAL_DEFAULT_BOARDS_INCLUDED
+      Boolean(communicator?.isSystemCommunicator) ||
+      OFFICIAL_ROOT_BOARD_SET.has(rootBoard) ||
+      OFFICIAL_SYSTEM_BOARD_EMAIL_SET.has(email) ||
+      OFFICIAL_SYSTEM_BOARD_AUTHOR_SET.has(author) ||
+      hasSourceReference(communicator?.copySource) ||
+      hasSourceReference(communicator?.copySourceCommunicatorId) ||
+      hasSourceReference(communicator?.publicSourceId)
     );
-  }
-
-  private getOfficialCommunicatorPriority(communicator: any): number {
-    let priority = 0;
-    const name = `${communicator?.name || ''}`.toLowerCase();
-    const description = `${communicator?.description || ''}`.toLowerCase();
-    const email = `${communicator?.email || ''}`.toLowerCase();
-
-    if (!description.includes('copy')) {
-      priority += 4;
-    }
-
-    if (name.includes('komunicare')) {
-      priority += 2;
-    }
-
-    if (email.endsWith('@komuni.care')) {
-      priority += 1;
-    }
-
-    return priority;
   }
 }

@@ -55,9 +55,32 @@ const mountCompatibilityRoutes = (expressApp: Application): void => {
   });
 };
 
+const applySwaggerBasicAuth = (expressApp: Application): void => {
+  const swaggerPassword = process.env.SWAGGER_PASSWORD;
+  if (!swaggerPassword) return;
+
+  expressApp.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!req.path.startsWith('/docs')) return next();
+
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Basic ')) {
+      const credentials = Buffer.from(authHeader.slice(6), 'base64').toString('utf8');
+      const colonIdx = credentials.indexOf(':');
+      const pass = colonIdx >= 0 ? credentials.slice(colonIdx + 1) : credentials;
+      if (pass === swaggerPassword) {
+        return next();
+      }
+    }
+
+    res.set('WWW-Authenticate', 'Basic realm="Komunicare API Docs"');
+    res.status(401).send('Unauthorized');
+  });
+};
+
 const applyExpressMiddleware = (expressApp: Application): void => {
   expressApp.use(cors(corsOptions));
   expressApp.enable('trust proxy');
+  applySwaggerBasicAuth(expressApp);
   mountCompatibilityRoutes(expressApp);
 
   expressApp.get('/', (_req, res) => {

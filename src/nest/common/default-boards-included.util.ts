@@ -27,7 +27,9 @@ interface DefaultBoardIncludedLike extends Record<string, unknown> {
  */
 export const sanitizeDefaultBoardsIncluded = (
   defaultBoardsIncluded: unknown,
+  options: { includeFixedDefaults?: boolean } = {},
 ): DefaultBoardIncludedLike[] => {
+  const { includeFixedDefaults = true } = options;
   const inputArray = Array.isArray(defaultBoardsIncluded)
     ? defaultBoardsIncluded
     : [];
@@ -56,16 +58,23 @@ export const sanitizeDefaultBoardsIncluded = (
   }
 
   // Build the fixed entries, keeping user-provided non-canonical homeBoards.
-  const fixedEntries = Object.entries(FIXED_DEFAULT_BOARDS).map(
-    ([nameOnJSON, canonicalHomeBoard]) => {
-      const userHomeBoard = userEntries.get(nameOnJSON);
-      const homeBoard =
-        userHomeBoard && !CANONICAL_HOME_BOARDS.has(userHomeBoard)
-          ? userHomeBoard
-          : canonicalHomeBoard;
-      return { nameOnJSON, homeBoard };
-    },
-  );
+  // When includeFixedDefaults is false (e.g. a communicator created from
+  // scratch), the fixed komunicare bundle is NOT force-injected so the new
+  // communicator starts empty instead of behaving like a Komunicare copy.
+  const fixedEntries = includeFixedDefaults
+    ? Object.entries(FIXED_DEFAULT_BOARDS).map(
+        ([nameOnJSON, canonicalHomeBoard]) => {
+          const userHomeBoard = userEntries.get(nameOnJSON);
+          const homeBoard =
+            userHomeBoard && !CANONICAL_HOME_BOARDS.has(userHomeBoard)
+              ? userHomeBoard
+              : canonicalHomeBoard;
+          return { nameOnJSON, homeBoard };
+        },
+      )
+    : Array.from(userEntries.entries())
+        .filter(([nameOnJSON]) => nameOnJSON in FIXED_DEFAULT_BOARDS)
+        .map(([nameOnJSON, homeBoard]) => ({ nameOnJSON, homeBoard }));
 
   // Append at most one 'custom' entry if present.
   const customEntry = inputArray

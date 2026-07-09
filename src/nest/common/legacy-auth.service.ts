@@ -12,6 +12,7 @@ export interface AuthorizedUser {
   id?: string;
   _id?: string;
   email: string;
+  name?: string;
   isAdmin?: boolean;
   role?: string;
   gender?: string;

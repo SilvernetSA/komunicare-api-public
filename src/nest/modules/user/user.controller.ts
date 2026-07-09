@@ -9,11 +9,14 @@ import {
   Put,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { BaseController } from '../../common/base.controller';
+import { UserThrottlerGuard } from '../../common/user-throttler.guard';
 import {
   ApiErrorResponses,
   ApiPaginationQuery,
@@ -157,6 +160,8 @@ export class UserController extends BaseController {
 
   @Post('send-email')
   @HttpCode(200)
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ 'send-email': { limit: 5, ttl: 60_000 } })
   @ApiSuccessResponse(SendUserEmailResponse, 'Email sent')
   @ApiErrorResponses('badRequest', 'unauthorized', 'internal')
   sendUserEmail(

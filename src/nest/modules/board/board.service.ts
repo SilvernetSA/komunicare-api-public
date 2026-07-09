@@ -19,6 +19,8 @@ import {
 } from '../../common/legacy-auth.service';
 import { MailGatewayService } from '../../common/mail-gateway.service';
 import { BoardPersistenceEntity } from '../../common/models/board.persistence-model';
+import { PublicBoardReportPersistenceEntity } from '../../common/models/public-board-report.persistence-model';
+import { paginatedResponse } from '../../common/pagination.util';
 import { getORQuery } from '../../common/query.util';
 import { ListBoardsByEmailDto } from './dto/list-boards-by-email.dto';
 import { ReportPublicBoardDto } from './dto/report-public-board.dto';
@@ -34,6 +36,7 @@ import {
   BoardActionResponse,
   BoardModel,
   PaginatedBoardModelResponse,
+  PaginatedPublicBoardReportModelResponse,
 } from './models/board.model';
 
 const CANONICAL_OFFICIAL_BOARD_IDS = new Set(['komunicare']);
@@ -45,6 +48,11 @@ const OFFICIAL_PUBLIC_BOARD_EXCLUSIONS = [
   { email: { $in: OFFICIAL_SYSTEM_BOARD_EMAILS } },
   { author: { $in: OFFICIAL_SYSTEM_BOARD_AUTHORS } },
 ];
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+  const normalized = String(value || '').trim();
+  return normalized || undefined;
+};
 
 @Injectable()
 export class BoardService {
@@ -155,8 +163,17 @@ export class BoardService {
       'You are not authorized to create a board for this user.',
     );
 
+    const publicSourceId = normalizeOptionalString(payload?.publicSourceId);
+
+    if (payload?.isPublic && publicSourceId) {
+      throw new BadRequestException(
+        'A copied public board cannot be published.',
+      );
+    }
+
     const board = this.boardRepository.create({
       ...payload,
+      publicSourceId,
       lastEdited: moment().format(),
     });
     await this.boardRepository.save(board);
@@ -178,6 +195,22 @@ export class BoardService {
     const whistleblowerName = payload.whistleblower?.name || 'Unknown';
     const whistleblowerEmail = payload.whistleblower?.email || 'Unknown';
     const whistleblowerLanguage = payload.whistleblower?.language || 'Unknown';
+
+    const report = new PublicBoardReportPersistenceEntity({
+      boardId: String(board.id || board._id || payload.id),
+      boardName: board.name,
+      author: board.author,
+      ownerEmail: board.email,
+      reason: payload.reason.trim(),
+      url: payload.url.trim(),
+      whistleblower: {
+        name: normalizeOptionalString(payload.whistleblower?.name),
+        email: normalizeOptionalString(payload.whistleblower?.email),
+        language: normalizeOptionalString(payload.whistleblower?.language),
+      },
+    });
+
+    await report.save();
 
     const html = `
       <h1>Public board report</h1>
@@ -223,6 +256,45 @@ export class BoardService {
     };
   }
 
+  async listPublicBoardReportsBackoffice(
+    req: Request,
+    query: ListBoardsByEmailDto,
+  ): Promise<PaginatedPublicBoardReportModelResponse> {
+    await this.assertAdmin(
+      req,
+      'You are not authorized to list public board reports.',
+    );
+
+    const search = query.search || '';
+    const searchQuery: Record<string, unknown> = search.length
+      ? (getORQuery(
+          [
+            'boardId',
+            'boardName',
+            'author',
+            'ownerEmail',
+            'reason',
+            'url',
+            'whistleblower.name',
+            'whistleblower.email',
+            'whistleblower.language',
+            'status',
+          ],
+          search,
+          true,
+        ) as Record<string, unknown>)
+      : {};
+
+    return (await paginatedResponse(
+      PublicBoardReportPersistenceEntity as any,
+      { query: searchQuery },
+      {
+        ...query,
+        sort: query.sort && query.sort !== '-_id' ? query.sort : '-createdAt',
+      },
+    )) as unknown as PaginatedPublicBoardReportModelResponse;
+  }
+
   async updateBoard(
     req: Request,
     id: string,
@@ -231,6 +303,12 @@ export class BoardService {
     const user = await this.legacyAuthService.getAuthorizedUser(req);
     const board = await this.findBoardById(id);
     const nextEmail = payload?.email || board.email;
+    const nextIsPublic =
+      payload?.isPublic !== undefined ? payload.isPublic : Boolean(board.isPublic);
+    const nextPublicSourceId =
+      payload?.publicSourceId !== undefined
+        ? normalizeOptionalString(payload.publicSourceId)
+        : normalizeOptionalString(board.publicSourceId);
 
     await this.authorizeBoardAccess(
       req,
@@ -240,12 +318,22 @@ export class BoardService {
     );
 
     if (payload.isPublic && ['root', 'jjmlUcQs19', 'komunicare'].includes(id)) {
-      throw new BadRequestException('Los tableros base oficiales no pueden ser publicados.');
+      throw new BadRequestException('This board cannot be published.');
+    }
+
+    if (nextIsPublic && nextPublicSourceId) {
+      throw new BadRequestException(
+        'A copied public board cannot be published.',
+      );
     }
 
     Object.keys(payload || {}).forEach((key) => {
       board[key] = payload[key];
     });
+
+    if (payload?.publicSourceId !== undefined) {
+      board.publicSourceId = nextPublicSourceId;
+    }
 
     board.lastEdited = moment().format();
     await this.boardRepository.save(board);
@@ -432,14 +520,10 @@ export class BoardService {
   async cleanupDefaultCommunicatorCopies(
     req: Request,
   ): Promise<CleanupCommunicatorBoardCopiesResult> {
-    const user = await this.legacyAuthService.getAuthorizedUser(req);
-    const isAdmin = Boolean(user.isAdmin || user.role === 'admin');
-
-    if (!isAdmin) {
-      throw new ForbiddenException(
-        'You are not authorized to cleanup communicator board copies.',
-      );
-    }
+    await this.assertAdmin(
+      req,
+      'You are not authorized to cleanup communicator board copies.',
+    );
 
     return this.communicatorBoardCleanupService.cleanupCommunicatorBoardCopies();
   }
@@ -456,6 +540,15 @@ export class BoardService {
       email,
       errorMessage,
     );
+  }
+
+  private async assertAdmin(req: Request, errorMessage: string): Promise<void> {
+    const user = await this.legacyAuthService.getAuthorizedUser(req);
+    const isAdmin = Boolean(user.isAdmin || user.role === 'admin');
+
+    if (!isAdmin) {
+      throw new ForbiddenException(errorMessage);
+    }
   }
 
   private async findBoardById(id: string): Promise<any> {

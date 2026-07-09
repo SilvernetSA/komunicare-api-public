@@ -2,10 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import axios from 'axios';
 import { Request } from 'express';
 import { randomUUID } from 'crypto';
 
@@ -13,7 +11,6 @@ import { LegacyAuthService } from '../../common/legacy-auth.service';
 import { BoardPersistenceEntity } from '../../common/models/board.persistence-model';
 import { CommunicatorPersistenceEntity } from '../../common/models/communicator.persistence-model';
 import { SystemCommunicatorDraftPersistenceEntity } from '../../common/models/system-communicator-draft.persistence-model';
-import { AiGenerateBoardDto } from './dto/ai-generate-board.dto';
 import { CreateSystemBoardDto } from './dto/create-system-board.dto';
 import { CreateSystemCommunicatorDto } from './dto/create-system-communicator.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
@@ -225,39 +222,6 @@ export class SystemBoardsService {
     }
     if (!board) throw new NotFoundException(`System board not found: ${boardId}`);
     return board;
-  }
-
-  async aiGenerateBoard(req: Request, _communicator: string, dto: AiGenerateBoardDto) {
-    await this.assertAdminOrTherapist(req);
-
-    const lambdaUrl = process.env.AI_ENGINE_LAMBDA_URL;
-    if (!lambdaUrl) {
-      throw new InternalServerErrorException({ error: 'AI engine not configured' });
-    }
-
-    const { prompt, totalTiles = 20, language = 'es', symbolSet = 'arasaac' } = dto;
-
-    try {
-      const { data } = await axios.post(
-        lambdaUrl,
-        { action: 'create-board', prompt, totalTiles, language, symbolSet },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(process.env.AI_ENGINE_LAMBDA_API_KEY
-              ? { 'x-api-key': process.env.AI_ENGINE_LAMBDA_API_KEY }
-              : {}),
-          },
-          timeout: 35_000,
-        },
-      );
-      return data.board;
-    } catch (error: any) {
-      const status = error?.response?.status;
-      const message = error?.response?.data?.error || error?.message;
-      if (status === 400) throw new BadRequestException({ error: message });
-      throw new InternalServerErrorException({ error: 'AI engine error' });
-    }
   }
 
   async createBoard(req: Request, communicator: string, dto: CreateSystemBoardDto) {

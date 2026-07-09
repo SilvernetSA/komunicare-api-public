@@ -5,6 +5,7 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -55,6 +56,8 @@ const UPDATEABLE_FIELDS = [
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     private readonly legacyAuthService: LegacyAuthService,
     private readonly mailGateway: MailGatewayService,
@@ -1196,6 +1199,32 @@ export class UserService {
     }
 
     return filters;
+  }
+
+  async blockUserBackoffice(req: Request, userId: string): Promise<UserActionResponse> {
+    await this.getAdminUser(req);
+
+    const user = await this.userRepository.findByIdWithoutSettings(userId);
+    if (!user) {
+      throw new NotFoundException(`User #${userId} not found`);
+    }
+
+    await this.userRepository.blockById(userId);
+
+    return { message: 'User blocked successfully.' };
+  }
+
+  async unblockUserBackoffice(req: Request, userId: string): Promise<UserActionResponse> {
+    await this.getAdminUser(req);
+
+    const user = await this.userRepository.findByIdWithoutSettings(userId);
+    if (!user) {
+      throw new NotFoundException(`User #${userId} not found`);
+    }
+
+    await this.userRepository.unblockById(userId);
+
+    return { message: 'User unblocked successfully.' };
   }
 
   private async getAdminUser(req: Request): Promise<UserModel> {

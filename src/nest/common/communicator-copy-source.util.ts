@@ -1,7 +1,5 @@
 export const COMMUNICATOR_COPY_SOURCES = [
   'komunicare',
-  'cboard',
-  'universal_core',
 ] as const;
 
 export type CommunicatorCopySource =
@@ -10,12 +8,6 @@ export type CommunicatorCopySource =
 const COMMUNICATOR_COPY_SOURCE_ALIAS_MAP: Record<string, CommunicatorCopySource> =
   {
     komunicare: 'komunicare',
-    advanced: 'cboard',
-    cboard: 'cboard',
-    picseepal: 'universal_core',
-    universalcore: 'universal_core',
-    universal_core: 'universal_core',
-    'universal-core': 'universal_core',
   };
 
 const normalizeRawValue = (value: unknown): string =>

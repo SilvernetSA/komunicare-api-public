@@ -11,8 +11,7 @@ interface OpenAIChatCompletionResponse {
 
 @Injectable()
 export class GptRepository {
-  private readonly apiKey: string =
-    process.env.OPEN_AI_API_KEY || '35bd811d41a84bf9b23bf41b1e8b5ee6';
+  private readonly apiKey: string = process.env.OPEN_AI_API_KEY || '';
 
   private readonly endpoint = 'https://komunicare-apps.openai.azure.com';
 

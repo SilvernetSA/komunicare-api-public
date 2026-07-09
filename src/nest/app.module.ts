@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { BoardModule } from './modules/board/board.module';
 import { CommunicatorModule } from './modules/communicator/communicator.module';
@@ -21,6 +22,30 @@ import { SystemBoardsModule } from './modules/system-boards/system-boards.module
 import { AiSuggestionsModule } from './modules/ai-suggestions/ai-suggestions.module';
 
 @Module({
-  imports: [BoardModule, CommunicatorModule, UserModule, SettingsModule, SubscriberModule, SubscriptionModule, PlanModule, ProductModule, LanguagesModule, KeyboardSettingsModule, MessageCategoriesModule, UserMessagesModule, TranslateModule, GptModule, LocationModule, MediaModule, WebhookModule, SystemBoardsModule, AiSuggestionsModule],
+  imports: [
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 100 },
+      { name: 'send-email', ttl: 60_000, limit: 5 },
+    ]),
+    BoardModule,
+    CommunicatorModule,
+    UserModule,
+    SettingsModule,
+    SubscriberModule,
+    SubscriptionModule,
+    PlanModule,
+    ProductModule,
+    LanguagesModule,
+    KeyboardSettingsModule,
+    MessageCategoriesModule,
+    UserMessagesModule,
+    TranslateModule,
+    GptModule,
+    LocationModule,
+    MediaModule,
+    WebhookModule,
+    SystemBoardsModule,
+    AiSuggestionsModule,
+  ],
 })
 export class NestAppModule {}

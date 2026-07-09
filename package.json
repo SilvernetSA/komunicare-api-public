@@ -28,6 +28,7 @@
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/platform-express": "^11.1.14",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.5.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "@snyk/protect": "1.1056.0",
     "@types/bcryptjs": "^2.4.6",

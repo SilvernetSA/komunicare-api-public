@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -38,11 +39,26 @@ export class CreateCommunicatorDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ example: '../logo.svg' })
+  @IsOptional()
+  @IsString()
+  caption?: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
+
+  @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
+  @IsOptional()
+  @IsString()
+  publicSourceId?: string;
+
   @ApiProperty({ example: 'komunicare' })
   @IsString()
   rootBoard!: string;
 
-  @ApiProperty({ type: [String], example: ['root', 'komunicare', 'jjmlUcQs19'] })
+  @ApiProperty({ type: [String], example: ['boardId1', 'boardId2'] })
   @IsArray()
   @IsString({ each: true })
   boards!: string[];

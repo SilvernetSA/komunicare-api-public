@@ -73,6 +73,39 @@ export class CommunicatorController extends BaseController {
     );
   }
 
+  @Get('public')
+  @ApiPaginationQuery()
+  @ApiSuccessResponse(
+    PaginatedCommunicatorModelResponse,
+    'Paginated public communicator list',
+  )
+  @ApiErrorResponses('unauthorized', 'internal')
+  async getPublicCommunicators(
+    @Req() req: Request,
+    @Query() query: ListCommunicatorsByEmailDto,
+  ): Promise<PaginatedCommunicatorModelResponse> {
+    return this.executeRequest(
+      'getPublicCommunicators',
+      () => this.communicatorService.getPublicCommunicators(req, query),
+      'Could not list public communicators',
+    );
+  }
+
+  @Post('public/:id/copy')
+  @HttpCode(200)
+  @ApiSuccessResponse(CreateCommunicatorResponse, 'Public communicator copied')
+  @ApiErrorResponses('badRequest', 'unauthorized', 'notFound', 'internal')
+  async copyPublicCommunicator(
+    @Req() req: Request,
+    @Param('id') id: string,
+  ): Promise<CreateCommunicatorResponse> {
+    return this.executeRequest(
+      'copyPublicCommunicator',
+      () => this.communicatorService.copyPublicCommunicator(req, id),
+      'Could not copy public communicator',
+    );
+  }
+
   @Get(':id')
   @ApiSuccessResponse(CommunicatorModel, 'Communicator found')
   @ApiErrorResponses('unauthorized', 'notFound', 'internal')

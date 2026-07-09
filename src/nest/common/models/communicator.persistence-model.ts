@@ -9,6 +9,10 @@ export interface CommunicatorPersistenceDocument extends Document {
   author: string;
   email: string;
   description?: string;
+  caption?: string;
+  isPublic?: boolean;
+  publicSourceId?: string;
+  isDefault?: boolean;
   rootBoard: string;
   boards: string[];
   defaultBoardsIncluded?: Record<string, unknown>[];
@@ -44,6 +48,24 @@ const communicatorSchema = new Schema<
     description: {
       type: String,
       trim: true,
+    },
+    caption: {
+      type: String,
+      trim: true,
+    },
+    isPublic: {
+      type: Boolean,
+      default: false,
+    },
+    publicSourceId: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    isDefault: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
     rootBoard: {
       type: String,
