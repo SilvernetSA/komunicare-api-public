@@ -12,8 +12,17 @@ import {
   LegacyAuthService,
 } from '../../common/legacy-auth.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
-import { SettingsModel } from './models/settings.model';
+import {
+  sanitizePublicSettingsModel,
+  sanitizePublicSettingsUpdate,
+  SettingsModel,
+} from './models/settings.model';
 import { SettingsRepository } from './settings.repository';
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 @Injectable()
 export class SettingsService {
@@ -82,9 +91,9 @@ export class SettingsService {
       throw new InternalServerErrorException('Could not get settings');
     }
 
-    return typeof settings.toJSON === 'function'
-      ? (settings.toJSON() as SettingsModel)
-      : (settings as SettingsModel);
+    return sanitizePublicSettingsModel(
+      typeof settings.toJSON === 'function' ? settings.toJSON() : settings,
+    );
   }
 
   private async getSettingsByUserIdForRequester(
@@ -106,9 +115,9 @@ export class SettingsService {
       throw new NotFoundException(`Settings not found. User Id: ${id}`);
     }
 
-    return typeof settings.toJSON === 'function'
-      ? (settings.toJSON() as SettingsModel)
-      : (settings as SettingsModel);
+    return sanitizePublicSettingsModel(
+      typeof settings.toJSON === 'function' ? settings.toJSON() : settings,
+    );
   }
 
   private async updateSettingsForTargetUser(
@@ -131,12 +140,33 @@ export class SettingsService {
       );
     }
 
-    const nextSettings: Record<string, unknown> = {
-      ...userSettings,
-      ...payload,
-      user: id,
-    };
-    delete nextSettings.id;
+    const sanitizedUpdate = sanitizePublicSettingsUpdate(
+      payload as Record<string, unknown>,
+    );
+    const nextSettings: Record<string, unknown> = {};
+
+    if (sanitizedUpdate.language !== undefined) {
+      nextSettings.language = sanitizedUpdate.language;
+    }
+
+    if (sanitizedUpdate.speech !== undefined) {
+      nextSettings.speech = sanitizedUpdate.speech;
+    }
+
+    if (sanitizedUpdate.display !== undefined) {
+      nextSettings.display = sanitizedUpdate.display;
+    }
+
+    if (sanitizedUpdate.devices !== undefined) {
+      nextSettings.devices = sanitizedUpdate.devices;
+    }
+
+    const nextNavigation = asRecord(sanitizedUpdate.navigation);
+    if (nextNavigation) {
+      Object.entries(nextNavigation).forEach(([key, value]) => {
+        nextSettings[`navigation.${key}`] = value;
+      });
+    }
 
     try {
       const updatedSettings = await this.settingsRepository.updateById(
@@ -148,7 +178,11 @@ export class SettingsService {
         throw new NotFoundException('Settings not found after update');
       }
 
-      return updatedSettings.toJSON() as SettingsModel;
+      return sanitizePublicSettingsModel(
+        typeof updatedSettings.toJSON === 'function'
+          ? updatedSettings.toJSON()
+          : updatedSettings,
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

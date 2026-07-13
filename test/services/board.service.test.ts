@@ -7,7 +7,7 @@ import { BoardService } from '../../src/nest/modules/board/board.service';
 const createLegacyAuthService = () => ({
   async getAuthorizedUser() {
     return {
-      email: 'damianclluch@gmail.com',
+      email: 'owner@example.com',
       isAdmin: false,
     };
   },
@@ -36,7 +36,7 @@ test('BoardService.createBoard rejects publishing copied public boards', async (
       service.createBoard({} as any, {
         name: 'Copied public board',
         author: 'Damian',
-        email: 'damianclluch@gmail.com',
+        email: 'owner@example.com',
         isPublic: true,
         publicSourceId: '67af7a87b764d6e7efcf2d22',
       }),
@@ -57,7 +57,7 @@ test('BoardService.updateBoard rejects publishing copied public boards', async (
       return {
         _id: '67af7a87b764d6e7efcf2d31',
         id: '67af7a87b764d6e7efcf2d31',
-        email: 'damianclluch@gmail.com',
+        email: 'owner@example.com',
         isPublic: false,
         publicSourceId: '67af7a87b764d6e7efcf2d22',
       };

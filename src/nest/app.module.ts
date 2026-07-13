@@ -10,16 +10,13 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { ProductModule } from './modules/product/product.module';
 import { LanguagesModule } from './modules/languages/languages.module';
-import { KeyboardSettingsModule } from './modules/keyboard-settings/keyboard-settings.module';
 import { MessageCategoriesModule } from './modules/message-categories/message-categories.module';
 import { UserMessagesModule } from './modules/user-messages/user-messages.module';
 import { TranslateModule } from './modules/translate/translate.module';
-import { GptModule } from './modules/gpt/gpt.module';
 import { LocationModule } from './modules/location/location.module';
 import { MediaModule } from './modules/media/media.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { SystemBoardsModule } from './modules/system-boards/system-boards.module';
-import { AiSuggestionsModule } from './modules/ai-suggestions/ai-suggestions.module';
 
 @Module({
   imports: [
@@ -36,16 +33,13 @@ import { AiSuggestionsModule } from './modules/ai-suggestions/ai-suggestions.mod
     PlanModule,
     ProductModule,
     LanguagesModule,
-    KeyboardSettingsModule,
     MessageCategoriesModule,
     UserMessagesModule,
     TranslateModule,
-    GptModule,
     LocationModule,
     MediaModule,
     WebhookModule,
     SystemBoardsModule,
-    AiSuggestionsModule,
   ],
 })
 export class NestAppModule {}

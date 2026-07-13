@@ -5,14 +5,12 @@ import {
   RequestQuery,
   paginatedResponse,
 } from './pagination.util';
-import { KeyboardSettingsPersistenceModel } from './models/keyboard-settings.persistence-model';
 import { LanguagePersistenceModel } from './models/language.persistence-model';
 import {
   DEFAULT_MESSAGE_CATEGORIES,
   MessageCategoryPersistenceModel,
 } from './models/message-category.persistence-model';
 import { UserMessagePersistenceEntity } from './models/user-message.persistence-model';
-import { buildKeyboardSettingsUpdate } from './keyboard-settings-update.util';
 
 @Injectable()
 export class ContentPersistenceService {
@@ -68,35 +66,5 @@ export class ContentPersistenceService {
 
   async deleteUserMessageById(id: string): Promise<void> {
     await (UserMessagePersistenceEntity as any).deleteOne({ _id: id }).exec();
-  }
-
-  async findKeyboardSettingsByUserId(userId: string): Promise<any | null> {
-    return (KeyboardSettingsPersistenceModel as any).findOne({ user: userId }).exec();
-  }
-
-  async upsertKeyboardSettingsByUserId(
-    userId: string,
-    payload: Record<string, unknown>,
-  ): Promise<any | null> {
-    const update = buildKeyboardSettingsUpdate(userId, payload);
-
-    return (KeyboardSettingsPersistenceModel as any)
-      .findOneAndUpdate(
-        { user: userId },
-        update,
-        {
-          upsert: true,
-          new: true,
-          runValidators: true,
-          setDefaultsOnInsert: true,
-        },
-      )
-      .exec();
-  }
-
-  async deleteKeyboardSettingsByUserId(userId: string): Promise<void> {
-    await (KeyboardSettingsPersistenceModel as any)
-      .deleteOne({ user: userId })
-      .exec();
   }
 }

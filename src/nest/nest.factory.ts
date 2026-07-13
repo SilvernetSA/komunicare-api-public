@@ -13,7 +13,6 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { NestAppModule } from './app.module';
-import * as socket from '../socket';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const db = require('../db');
@@ -179,7 +178,7 @@ export const bootstrapNestApplication = async (
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Komunicare API')
     .setDescription(
-      'NestJS-powered backend for Komunicare, including boards, communicators, users, subscriptions, GPT, media and supporting resources.',
+      'NestJS-powered backend for Komunicare, including boards, communicators, users, subscriptions, media and supporting resources.',
     )
     .setVersion('1.3.1')
     .addBearerAuth(
@@ -206,7 +205,6 @@ export const bootstrapNestApplication = async (
   attachFallbackErrorHandler(expressApp);
 
   const server = await createServer(expressApp);
-  socket.init(server, corsOptions as any);
 
   const port = options.port ?? Number(process.env.PORT || 10010);
   await new Promise<void>((resolve) => {

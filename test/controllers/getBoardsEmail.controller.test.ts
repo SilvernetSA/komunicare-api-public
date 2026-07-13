@@ -47,7 +47,7 @@ test('BoardService.getBoardsByEmail paginates with email merged into the query a
   const legacyAuthService = {
     async getAuthorizedUser() {
       return {
-        email: 'juanperez@gmail.com',
+        email: 'member@example.com',
         isAdmin: false,
       };
     },
@@ -77,13 +77,13 @@ test('BoardService.getBoardsByEmail paginates with email merged into the query a
 
   const result = await service.getBoardsByEmail(
     {},
-    'juanperez@gmail.com',
+    'member@example.com',
     { search: 'home', page: '1', limit: '10' },
   );
 
   assert.equal(paginateCalls.length, 1);
   const criteria = paginateCalls[0][0] as any;
-  assert.equal(criteria.email, 'juanperez@gmail.com');
+  assert.equal(criteria.email, 'member@example.com');
   assert.ok(Array.isArray(criteria.$or));
   assert.equal(criteria.$or.length, 2);
   assert.equal(criteria.$or[0].name.$regex.source, 'home');

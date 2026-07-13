@@ -49,7 +49,7 @@ importers:
         version: 2.4.3
       body-parser:
         specifier: 1.20.2
-        version: 1.20.2(supports-color@5.5.0)
+        version: 1.20.2
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -58,7 +58,7 @@ importers:
         version: 0.15.1
       connect-mongo:
         specifier: ^3.2.0
-        version: 3.2.0(express-session@1.19.0(supports-color@5.5.0))
+        version: 3.2.0(express-session@1.19.0)
       cors:
         specifier: ^2.8.5
         version: 2.8.6
@@ -70,13 +70,13 @@ importers:
         version: 2.0.2
       express:
         specifier: ^4.17.3
-        version: 4.22.2(supports-color@5.5.0)
+        version: 4.22.2
       express-async-errors:
         specifier: ^3.1.1
-        version: 3.1.1(express@4.22.2(supports-color@5.5.0))
+        version: 3.1.1(express@4.22.2)
       express-session:
         specifier: ^1.17.3
-        version: 1.19.0(supports-color@5.5.0)
+        version: 1.19.0
       googleapis:
         specifier: ^110.0.0
         version: 110.0.0
@@ -100,7 +100,7 @@ importers:
         version: 5.13.23
       morgan:
         specifier: ^1.10.0
-        version: 1.10.1(supports-color@5.5.0)
+        version: 1.10.1
       ms:
         specifier: ^2.1.3
         version: 2.1.3
@@ -125,12 +125,6 @@ importers:
       should:
         specifier: ^13.2.3
         version: 13.2.3
-      socket.io:
-        specifier: ^4.8.1
-        version: 4.8.3
-      socket.io-client:
-        specifier: ^4.8.1
-        version: 4.8.3
       translate-api:
         specifier: ^0.3.18
         version: 0.3.18
@@ -165,9 +159,6 @@ importers:
       '@types/pem':
         specifier: ^1.14.4
         version: 1.14.4
-      '@types/socket.io':
-        specifier: ^3.0.2
-        version: 3.0.2
       husky:
         specifier: ^4.2.0
         version: 4.3.8
@@ -455,9 +446,6 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  '@socket.io/component-emitter@3.1.2':
-    resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
-
   '@tokenizer/inflate@0.4.1':
     resolution: {integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==}
     engines: {node: '>=18'}
@@ -552,15 +540,8 @@ packages:
   '@types/serve-static@1.15.10':
     resolution: {integrity: sha512-tRs1dB+g8Itk72rlSI2ZrW6vZg0YrLI81iQSTkMmOqnqCaNr/8Ek4VwWcN5vZgCYWbg/JJSGBlUaYGAOP73qBw==}
 
-  '@types/socket.io@3.0.2':
-    resolution: {integrity: sha512-pu0sN9m5VjCxBZVK8hW37ZcMe8rjn4HHggBN5CbaRTvFwv5jOmuIRZEuddsBPa9Th0ts0SIo3Niukq+95cMBbQ==}
-    deprecated: This is a stub types definition. socket.io provides its own type definitions, so you do not need this installed.
-
   '@types/validator@13.15.10':
     resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
-
-  '@types/ws@8.18.1':
-    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   accepts@1.3.8:
     resolution: {integrity: sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==}
@@ -701,10 +682,6 @@ packages:
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
-
-  base64id@2.0.0:
-    resolution: {integrity: sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog==}
-    engines: {node: ^4.5.0 || >= 5.9}
 
   base@0.11.2:
     resolution: {integrity: sha512-5T6P4xPgpp0YDFvSWwEZ4NoE3aM4QBQXDzmVbraCkFj8zHM+mba8SyqB5DbZWyR7mYHo6Y7BdQo3MoA4m0TeQg==}
@@ -1139,17 +1116,6 @@ packages:
 
   end-of-stream@1.4.5:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
-
-  engine.io-client@6.6.5:
-    resolution: {integrity: sha512-QCwxUDULPlXv8F6tqMMKx5dNkTe6OaBYRMPYeXKBlyOoKvAmE0ac6pW7fFhSscJ/5SI7666/U/B+MElbsrJlIg==}
-
-  engine.io-parser@5.2.3:
-    resolution: {integrity: sha512-HqD3yTBfnBxIrbnM1DoD6Pcq8NECnh8d4As1Qgh0z5Gg3jRRIqijury0CL3ghu/edArpUYiYqQiDUQBIs4np3Q==}
-    engines: {node: '>=10.0.0'}
-
-  engine.io@6.6.8:
-    resolution: {integrity: sha512-2agL3ueZhqxoVrfmntO8yuVj+uNSlIOnhykYHk3Cq0ShYPdUjjUiSJrQvXjq01I9jAuI0Zl2YO8Evv5Mqytm5g==}
-    engines: {node: '>=10.2.0'}
 
   enquirer@2.4.1:
     resolution: {integrity: sha512-rRqJg/6gd538VHvR3PSrdRBb/1Vy2YfzHqzvbhGIQpDRKIa4FgV/54b5Q1xYSxOOwKvjXweS26E0Q+nAMwp2pQ==}
@@ -2582,21 +2548,6 @@ packages:
     resolution: {integrity: sha512-FtyOnWN/wCHTVXOMwvSv26d+ko5vWlIDD6zoUJ7LW8vh+ZBC8QdljveRP+crNrtBwioEUWy/4dMtbBjA4ioNlg==}
     engines: {node: '>=0.10.0'}
 
-  socket.io-adapter@2.5.7:
-    resolution: {integrity: sha512-e0LyK91f3cUxTmv95/KzoLg47+zF+s/sbxRGDNsyG4dmIP8ZSX8ax6byOxfJXeNNtS/8AZlfD+uP7gBeR7DLlg==}
-
-  socket.io-client@4.8.3:
-    resolution: {integrity: sha512-uP0bpjWrjQmUt5DTHq9RuoCBdFJF10cdX9X+a368j/Ft0wmaVgxlrjvK3kjvgCODOMMOz9lcaRzxmso0bTWZ/g==}
-    engines: {node: '>=10.0.0'}
-
-  socket.io-parser@4.2.6:
-    resolution: {integrity: sha512-asJqbVBDsBCJx0pTqw3WfesSY0iRX+2xzWEWzrpcH7L6fLzrhyF8WPI8UaeM4YCuDfpwA/cgsdugMsmtz8EJeg==}
-    engines: {node: '>=10.0.0'}
-
-  socket.io@4.8.3:
-    resolution: {integrity: sha512-2Dd78bqzzjE6KPkD5fHZmDAKRNe3J15q+YHDrIsy9WEkqttc7GY+kT9OBLSMaPbQaEd0x1BjcmtMtXkfpc+T5A==}
-    engines: {node: '>=10.2.0'}
-
   source-map-resolve@0.5.3:
     resolution: {integrity: sha512-Htz+RnsXWk5+P2slx5Jh3Q66vhQj1Cllm0zvnaY98+NFx+Dv2CF/f5O/t8x+KaNdrdIAsruNzoh/KpialbqAnw==}
     deprecated: See https://github.com/lydell/source-map-resolve#deprecated
@@ -2945,18 +2896,6 @@ packages:
   write-file-atomic@2.4.3:
     resolution: {integrity: sha512-GaETH5wwsX+GcnzhPgKcKjJ6M2Cq3/iZp1WyY/X1CSqrW+jVNM9Y7D8EC2sM4ZG/V8wZlSniJnCKWPmBYAucRQ==}
 
-  ws@8.20.1:
-    resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
   xdg-basedir@3.0.0:
     resolution: {integrity: sha512-1Dly4xqlulvPD3fZUQJLY+FUIeqN3N2MM3uqe4rCJftAvOjFa3jFGfctOgluGx4ahPbUCsZkmJILiP0Vi4T6lQ==}
     engines: {node: '>=4'}
@@ -2971,10 +2910,6 @@ packages:
   xmlbuilder@9.0.7:
     resolution: {integrity: sha512-7YXTQc3P2l9+0rjaUbLwMKRhtmwg1M1eDf6nag7urC7pIPYLD9W/jmzQ4ptRSUbodw5S0jfoGTflLemQibSpeQ==}
     engines: {node: '>=4.0'}
-
-  xmlhttprequest-ssl@2.1.2:
-    resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
-    engines: {node: '>=0.4.0'}
 
   yallist@2.1.2:
     resolution: {integrity: sha512-ncTzHV7NvsQZkYe1DW7cbDLm0YpzHmZF5r/iyP3ZnQtMiJ+pjzisCiMNI+Sj+xQF5pXhSHxSB3uDbsBTzY/c2A==}
@@ -3352,8 +3287,6 @@ snapshots:
 
   '@snyk/protect@1.1056.0': {}
 
-  '@socket.io/component-emitter@3.1.2': {}
-
   '@tokenizer/inflate@0.4.1':
     dependencies:
       debug: 4.4.3
@@ -3470,19 +3403,7 @@ snapshots:
       '@types/node': 25.9.1
       '@types/send': 0.17.6
 
-  '@types/socket.io@3.0.2':
-    dependencies:
-      socket.io: 4.8.3
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
   '@types/validator@13.15.10': {}
-
-  '@types/ws@8.18.1':
-    dependencies:
-      '@types/node': 25.9.1
 
   accepts@1.3.8:
     dependencies:
@@ -3618,8 +3539,6 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  base64id@2.0.0: {}
-
   base@0.11.2:
     dependencies:
       cache-base: 1.0.1
@@ -3658,7 +3577,7 @@ snapshots:
 
   bluebird@3.7.2: {}
 
-  body-parser@1.20.2(supports-color@5.5.0):
+  body-parser@1.20.2:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
@@ -3675,7 +3594,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  body-parser@1.20.5(supports-color@5.5.0):
+  body-parser@1.20.5:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
@@ -3933,9 +3852,9 @@ snapshots:
       write-file-atomic: 2.4.3
       xdg-basedir: 3.0.0
 
-  connect-mongo@3.2.0(express-session@1.19.0(supports-color@5.5.0)):
+  connect-mongo@3.2.0(express-session@1.19.0):
     dependencies:
-      express-session: 1.19.0(supports-color@5.5.0)
+      express-session: 1.19.0
       mongodb: 3.7.4
     transitivePeerDependencies:
       - aws4
@@ -4130,37 +4049,6 @@ snapshots:
     dependencies:
       once: 1.4.0
 
-  engine.io-client@6.6.5:
-    dependencies:
-      '@socket.io/component-emitter': 3.1.2
-      debug: 4.4.3
-      engine.io-parser: 5.2.3
-      ws: 8.20.1
-      xmlhttprequest-ssl: 2.1.2
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
-  engine.io-parser@5.2.3: {}
-
-  engine.io@6.6.8:
-    dependencies:
-      '@types/cors': 2.8.19
-      '@types/node': 25.9.1
-      '@types/ws': 8.18.1
-      accepts: 1.3.8
-      base64id: 2.0.0
-      cookie: 0.7.2
-      cors: 2.8.6
-      debug: 4.4.3
-      engine.io-parser: 5.2.3
-      ws: 8.20.1
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
   enquirer@2.4.1:
     dependencies:
       ansi-colors: 4.1.3
@@ -4229,11 +4117,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  express-async-errors@3.1.1(express@4.22.2(supports-color@5.5.0)):
+  express-async-errors@3.1.1(express@4.22.2):
     dependencies:
-      express: 4.22.2(supports-color@5.5.0)
+      express: 4.22.2
 
-  express-session@1.19.0(supports-color@5.5.0):
+  express-session@1.19.0:
     dependencies:
       cookie: 0.7.2
       cookie-signature: 1.0.7
@@ -4246,11 +4134,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  express@4.22.2(supports-color@5.5.0):
+  express@4.22.2:
     dependencies:
       accepts: 1.3.8
       array-flatten: 1.1.1
-      body-parser: 1.20.5(supports-color@5.5.0)
+      body-parser: 1.20.5
       content-disposition: 0.5.4
       content-type: 1.0.5
       cookie: 0.7.2
@@ -4260,7 +4148,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 1.3.2(supports-color@5.5.0)
+      finalhandler: 1.3.2
       fresh: 0.5.2
       http-errors: 2.0.1
       merge-descriptors: 1.0.3
@@ -4272,7 +4160,7 @@ snapshots:
       qs: 6.15.2
       range-parser: 1.2.1
       safe-buffer: 5.2.1
-      send: 0.19.2(supports-color@5.5.0)
+      send: 0.19.2
       serve-static: 1.16.3
       setprototypeof: 1.2.0
       statuses: 2.0.2
@@ -4384,7 +4272,7 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  finalhandler@1.3.2(supports-color@5.5.0):
+  finalhandler@1.3.2:
     dependencies:
       debug: 2.6.9(supports-color@5.5.0)
       encodeurl: 2.0.0
@@ -5155,7 +5043,7 @@ snapshots:
       - snappy
       - supports-color
 
-  morgan@1.10.1(supports-color@5.5.0):
+  morgan@1.10.1:
     dependencies:
       basic-auth: 2.0.1
       debug: 2.6.9(supports-color@5.5.0)
@@ -5623,7 +5511,7 @@ snapshots:
 
   semver@7.8.0: {}
 
-  send@0.19.2(supports-color@5.5.0):
+  send@0.19.2:
     dependencies:
       debug: 2.6.9(supports-color@5.5.0)
       depd: 2.0.0
@@ -5662,7 +5550,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 0.19.2(supports-color@5.5.0)
+      send: 0.19.2
     transitivePeerDependencies:
       - supports-color
 
@@ -5801,47 +5689,6 @@ snapshots:
       use: 3.1.1
     transitivePeerDependencies:
       - supports-color
-
-  socket.io-adapter@2.5.7:
-    dependencies:
-      debug: 4.4.3
-      ws: 8.20.1
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
-  socket.io-client@4.8.3:
-    dependencies:
-      '@socket.io/component-emitter': 3.1.2
-      debug: 4.4.3
-      engine.io-client: 6.6.5
-      socket.io-parser: 4.2.6
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
-  socket.io-parser@4.2.6:
-    dependencies:
-      '@socket.io/component-emitter': 3.1.2
-      debug: 4.4.3
-    transitivePeerDependencies:
-      - supports-color
-
-  socket.io@4.8.3:
-    dependencies:
-      accepts: 1.3.8
-      base64id: 2.0.0
-      cors: 2.8.6
-      debug: 4.4.3
-      engine.io: 6.6.8
-      socket.io-adapter: 2.5.7
-      socket.io-parser: 4.2.6
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
 
   source-map-resolve@0.5.3:
     dependencies:
@@ -6194,8 +6041,6 @@ snapshots:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
 
-  ws@8.20.1: {}
-
   xdg-basedir@3.0.0: {}
 
   xml-naming@0.1.0: {}
@@ -6205,8 +6050,6 @@ snapshots:
       sax: 0.5.8
 
   xmlbuilder@9.0.7: {}
-
-  xmlhttprequest-ssl@2.1.2: {}
 
   yallist@2.1.2: {}
 

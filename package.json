@@ -1,7 +1,7 @@
 {
   "name": "komunicare-api",
   "version": "1.3.1",
-  "description": "Komunicare API powers the AAC platform backend, including the communication boards app, the on-screen keyboard experience, and the backoffice used to manage users, communicators, and system content.",
+  "description": "Komunicare API powers the AAC platform backend for boards, communicators, users, subscriptions, media, and core product content.",
   "keywords": [
     "aac",
     "autism",
@@ -61,8 +61,6 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "should": "^13.2.3",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
     "translate-api": "^0.3.18",
     "uuid": "^3.4.0",
     "validator": "^13.9.0"
@@ -76,14 +74,12 @@
     "@types/nodemailer": "^8.0.0",
     "@types/paypal__checkout-server-sdk": "^1.0.8",
     "@types/pem": "^1.14.4",
-    "@types/socket.io": "^3.0.2",
     "husky": "^4.2.0",
     "lint-staged": "^10.0.2",
     "nock": "^13.2.9",
     "nodemailer-mock": "^1.5.8",
     "nodemon": "^1.19.4",
     "prettier": "^1.19.1",
-    "socket.io-client": "^4.8.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
   },

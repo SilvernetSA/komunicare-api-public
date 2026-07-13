@@ -22,8 +22,8 @@ import { MailGatewayService } from '../../common/mail-gateway.service';
 import { MailTemplateService } from '../../common/mail-template.service';
 import { AppConfigService } from '../app-config/app-config.service';
 import { CreateUserBackofficeDto } from './dto/create-user-backoffice.dto';
-import { KeyboardSettingsPersistenceModel } from '../../common/models/keyboard-settings.persistence-model';
 import { getORQuery, getQuery } from '../../common/query.util';
+import { sanitizePublicSettingsModel } from '../settings/models/settings.model';
 import { SubscriberRepository } from '../subscriber/subscriber.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -243,13 +243,12 @@ export class UserService {
       const isByBackOffice = Boolean((user as any).isByBackOffice);
       const subscriber = await this.reviewSubscriber(userId, isByBackOffice);
 
-      return {
-        ...(user.toJSON() as UserModel),
+      return this.serializeUser(user, {
         settings,
         subscriber,
         birthdate: moment(user.birthdate).format('YYYY-MM-DD'),
         authToken: tokenString,
-      };
+      }) as AuthenticatedUserModel;
     } catch (error) {
       if (
         error instanceof ForbiddenException ||
@@ -461,10 +460,9 @@ export class UserService {
     const user = (await this.legacyAuthService.getAuthorizedUser(req)) as UserModel;
     const settings = await this.getSettings(user);
 
-    return {
-      ...user,
+    return this.serializeUser(user, {
       settings,
-    };
+    });
   }
 
   async getByEmail(req: Request, email: string): Promise<UserModel> {
@@ -481,7 +479,7 @@ export class UserService {
       throw new NotFoundException(`Unable to find user. User email: ${email}`);
     }
 
-    return user.toJSON() as UserModel;
+    return this.serializeUser(user);
   }
 
   async getById(req: Request, id: string): Promise<UserModel> {
@@ -494,10 +492,9 @@ export class UserService {
     }
 
     const settings = await this.getSettings(user as UserModel);
-    return {
-      ...(user.toJSON() as UserModel),
+    return this.serializeUser(user, {
       settings,
-    };
+    });
   }
 
   async updateUser(
@@ -684,15 +681,8 @@ export class UserService {
           removeOutputActive: false,
           vocalizeFolders: true,
           liveMode: false,
-          improvePhraseActive: true,
         },
-        selectedKeyboard: payload.keyboardInputMode || 'EYE',
       });
-
-      if (payload.keyboardInputMode === 'EYE') {
-        newSettings.keyboardDistribution =
-          payload.keyboardDistribution || 'HORIZONTAL';
-      }
 
       await newSettings.save();
 
@@ -735,8 +725,6 @@ export class UserService {
       const {
         id: _id,
         password,
-        keyboardInputMode,
-        keyboardDistribution,
         ...rawUpdateData
       } = payload;
       const updateData: Record<string, unknown> = { ...rawUpdateData };
@@ -753,28 +741,6 @@ export class UserService {
           message: `User not found. User Id: ${targetId}`,
         });
       }
-
-      const existingSettings =
-        await this.userRepository.findSettingsDocumentByUserId(targetId);
-
-      if (!existingSettings) {
-        throw new NotFoundException({
-          message: `Settings not found for User Id: ${targetId}`,
-        });
-      }
-
-      if (keyboardInputMode) {
-        existingSettings.selectedKeyboard = keyboardInputMode;
-
-        if (keyboardInputMode === 'EYE') {
-          existingSettings.keyboardDistribution =
-            keyboardDistribution || 'HORIZONTAL';
-        } else {
-          existingSettings.keyboardDistribution = undefined;
-        }
-      }
-
-      await existingSettings.save();
 
       return updatedUser.toJSON() as UserModel;
     } catch (error) {
@@ -993,34 +959,30 @@ export class UserService {
 
   private async getSettings(user: UserModel): Promise<Record<string, unknown> | null> {
     let settings = null;
-    const userId = String(user._id || user.id);
 
     try {
       settings = await this.userRepository.getOrCreateSettings(user);
-      if (settings && 'user' in settings) {
-        delete settings.user;
-      }
     } catch {}
 
-    try {
-      const keyboardSettings = await KeyboardSettingsPersistenceModel.findOne({
-        user: userId,
-      })
-        .lean()
-        .exec();
+    return settings ? sanitizePublicSettingsModel(settings) : null;
+  }
 
-      if (keyboardSettings) {
-        settings = {
-          ...(settings || {}),
-          selectedKeyboard: keyboardSettings.inputMode,
-          keyboardInputMode: keyboardSettings.inputMode,
-          keyboardDistribution: keyboardSettings.distribution,
-          contactEmail: keyboardSettings.contactEmail,
-        };
-      }
-    } catch {}
+  private serializeUser(
+    user: any,
+    overrides: Partial<UserModel> = {},
+  ): UserModel {
+    const baseUser =
+      typeof user?.toJSON === 'function' ? user.toJSON() : { ...(user || {}) };
+    const nextUser = {
+      ...baseUser,
+      ...overrides,
+    } as UserModel;
 
-    return settings;
+    if (nextUser.settings) {
+      nextUser.settings = sanitizePublicSettingsModel(nextUser.settings);
+    }
+
+    return nextUser;
   }
 
   private async reviewSubscriber(userId: string, isByBackOffice = false): Promise<Record<string, unknown>> {

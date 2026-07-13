@@ -65,6 +65,4 @@ jobs:
               -e MERCADOPAGO_ACCESS_TOKEN="${{ secrets.MERCADOPAGO_ACCESS_TOKEN_PROD }}" \
               -e MERCADOPAGO_SECRET_KEY="${{ secrets.MERCADOPAGO_SECRET_KEY_PROD }}" \
               -e KOMUNICARE_URL="https://komuni.care" \
-              -e AI_ENGINE_LAMBDA_URL="${{ secrets.AI_ENGINE_LAMBDA_URL }}" \
-              -e AI_ENGINE_LAMBDA_API_KEY="${{ secrets.AI_ENGINE_LAMBDA_API_KEY }}" \
               "$IMAGE_NAME:latest"

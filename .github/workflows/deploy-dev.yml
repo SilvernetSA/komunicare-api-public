@@ -107,8 +107,5 @@ jobs:
               -e MERCADOPAGO_TEST_MODE="true" \
               -e MERCADOPAGO_HOSTED_TEST_MODE="false" \
               -e SES_PASSWORD="${{ secrets.SES_PASSWORD }}" \
-              -e OPEN_AI_API_KEY="${{ secrets.OPEN_AI_API_KEY }}" \
               -e KOMUNICARE_URL="${{ env.KOMUNICARE_URL }}" \
-              -e AI_ENGINE_LAMBDA_URL="${{ secrets.AI_ENGINE_LAMBDA_URL }}" \
-              -e AI_ENGINE_LAMBDA_API_KEY="${{ secrets.AI_ENGINE_LAMBDA_API_KEY }}" \
               "$IMAGE_NAME:dev"

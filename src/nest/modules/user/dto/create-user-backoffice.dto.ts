@@ -1,7 +1,6 @@
 import {
   IsBoolean,
   IsEmail,
-  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -58,15 +57,4 @@ export class CreateUserBackofficeDto {
   @IsOptional()
   @IsString()
   locale?: string;
-
-  @ApiProperty({ enum: ['EYE', 'POINTER', 'STATIC'], example: 'EYE' })
-  @IsString()
-  @IsIn(['EYE', 'POINTER', 'STATIC'])
-  keyboardInputMode!: string;
-
-  @ApiPropertyOptional({ enum: ['VERTICAL', 'HORIZONTAL'], example: 'HORIZONTAL' })
-  @IsOptional()
-  @IsString()
-  @IsIn(['VERTICAL', 'HORIZONTAL'])
-  keyboardDistribution?: string;
 }

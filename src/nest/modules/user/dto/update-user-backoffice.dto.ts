@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateUserBackofficeDto {
@@ -37,16 +37,4 @@ export class UpdateUserBackofficeDto {
   @IsOptional()
   @IsString()
   locale?: string;
-
-  @ApiPropertyOptional({ enum: ['EYE', 'POINTER', 'STATIC'], example: 'EYE' })
-  @IsOptional()
-  @IsString()
-  @IsIn(['EYE', 'POINTER', 'STATIC'])
-  keyboardInputMode?: string;
-
-  @ApiPropertyOptional({ enum: ['VERTICAL', 'HORIZONTAL'], example: 'HORIZONTAL' })
-  @IsOptional()
-  @IsString()
-  @IsIn(['VERTICAL', 'HORIZONTAL'])
-  keyboardDistribution?: string;
 }

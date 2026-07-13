@@ -7,7 +7,7 @@ import { CommunicatorService } from '../../src/nest/modules/communicator/communi
 const createLegacyAuthService = () => ({
   async getAuthorizedUser() {
     return {
-      email: 'damianclluch@gmail.com',
+      email: 'user@example.com',
       isAdmin: false,
     };
   },
@@ -40,7 +40,7 @@ test('CommunicatorService.getCommunicatorsByEmail returns only repository data w
 
   const result = await service.getCommunicatorsByEmail(
     {} as any,
-    'damianclluch@gmail.com',
+    'user@example.com',
     { page: 1, limit: 100, offset: 0, sort: '-_id', search: '' },
   );
 
@@ -154,7 +154,7 @@ test('CommunicatorService.createCommunicator rejects duplicated public communica
       service.createCommunicator({} as any, {
         name: 'Damian - Public copy',
         author: 'Damian',
-        email: 'damianclluch@gmail.com',
+        email: 'user@example.com',
         description: 'copy',
         rootBoard: '67af7a87b764d6e7efcf2d22',
         boards: ['67af7a87b764d6e7efcf2d22'],
@@ -192,7 +192,7 @@ test('CommunicatorService.createCommunicator rejects publishing communicator cop
       service.createCommunicator({} as any, {
         name: 'Damian - Public copy',
         author: 'Damian',
-        email: 'damianclluch@gmail.com',
+        email: 'user@example.com',
         description: 'copy',
         isPublic: true,
         publicSourceId: 'source-communicator-id',
@@ -216,7 +216,7 @@ test('CommunicatorService.updateCommunicator rejects publishing communicator cop
       return {
         _id: 'copy-id',
         id: 'copy-id',
-        email: 'damianclluch@gmail.com',
+        email: 'user@example.com',
         rootBoard: '67af7a87b764d6e7efcf2d22',
         boards: ['67af7a87b764d6e7efcf2d22'],
         publicSourceId: 'source-communicator-id',
@@ -357,7 +357,7 @@ test('CommunicatorService.copyPublicCommunicator creates a private copy and rema
     );
 
     assert.equal(savedBoards.length, 2);
-    assert.equal(savedBoards[0].email, 'damianclluch@gmail.com');
+    assert.equal(savedBoards[0].email, 'user@example.com');
     assert.equal(savedBoards[0].isPublic, false);
     assert.equal(savedBoards[0].publicSourceId, sourceBoardAId);
     assert.equal(savedBoards[1].publicSourceId, undefined);
