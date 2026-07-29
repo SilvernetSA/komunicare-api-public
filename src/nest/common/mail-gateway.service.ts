@@ -4,7 +4,6 @@ import * as nodemailer from 'nodemailer';
 const DEFAULT_EMAIL_SOURCE = 'info@komuni.care';
 const DEFAULT_SES_HOST = 'email-smtp.us-east-1.amazonaws.com';
 const DEFAULT_SES_PORT = 465;
-const DEFAULT_SES_USERNAME = process.env.SES_USERNAME || '';
 
 type GatewayAuth = {
   user: string;
@@ -36,28 +35,21 @@ const parseBoolean = (value: string | undefined, fallback: boolean): boolean => 
   return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
 };
 
+const hasCustomSmtpConfig = (env: NodeJS.ProcessEnv): boolean => {
+  return Boolean(env.SMTP_HOST) || Boolean(env.SMTP_PORT) || Boolean(env.SMTP_SECURE);
+};
+
 const resolveAuth = (env: NodeJS.ProcessEnv): GatewayAuth | undefined => {
-  const hasCustomSmtp =
-    Boolean(env.SMTP_HOST) ||
-    Boolean(env.SMTP_PORT) ||
-    Boolean(env.SMTP_SECURE) ||
-    Boolean(env.SMTP_USER) ||
-    Boolean(env.SMTP_PASS);
+  const user = hasCustomSmtpConfig(env) ? env.SMTP_USER : env.SES_USERNAME;
+  const pass = hasCustomSmtpConfig(env) ? env.SMTP_PASS : env.SES_PASSWORD;
 
-  if (hasCustomSmtp) {
-    if (!env.SMTP_USER && !env.SMTP_PASS) {
-      return undefined;
-    }
-
-    return {
-      user: env.SMTP_USER || '',
-      pass: env.SMTP_PASS || '',
-    };
+  if (!user || !pass) {
+    return undefined;
   }
 
   return {
-    user: env.SES_USERNAME || DEFAULT_SES_USERNAME,
-    pass: env.SES_PASSWORD || '',
+    user,
+    pass,
   };
 };
 
@@ -79,6 +71,7 @@ export const buildMailGatewayConfig = (env: NodeJS.ProcessEnv): MailGatewayConfi
 export class MailGatewayService {
   private transporter: nodemailer.Transporter;
   private readonly emailSource: string;
+  private readonly isConfigured: boolean;
 
   constructor() {
     const mailConfig = buildMailGatewayConfig(process.env);
@@ -91,9 +84,14 @@ export class MailGatewayService {
     });
 
     this.emailSource = mailConfig.from;
+    this.isConfigured = Boolean(mailConfig.auth) || Boolean(process.env.SMTP_HOST);
   }
 
   async sendEmail(to: string, subject: string, html: string): Promise<any> {
+    if (!this.isConfigured) {
+      return { error: new Error('Mail gateway is not configured.') };
+    }
+
     if (!to) {
       return { error: new Error('Falta la dirección de destino (to).') };
     }

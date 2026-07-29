@@ -12,12 +12,16 @@ export interface CommunicatorPersistenceDocument extends Document {
   caption?: string;
   isPublic?: boolean;
   publicSourceId?: string;
-  isDefault?: boolean;
+  communicatorKey?: string;
+  isSystemCommunicator?: boolean;
   rootBoard: string;
   boards: string[];
   defaultBoardsIncluded?: Record<string, unknown>[];
   copySource?: string;
   copySourceCommunicatorId?: string;
+  isDefault?: boolean;
+  version?: number;
+  sourceVersion?: number;
   skipValidation(): boolean;
   [key: string]: any;
 }
@@ -62,7 +66,12 @@ const communicatorSchema = new Schema<
       required: false,
       trim: true,
     },
-    isDefault: {
+    communicatorKey: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    isSystemCommunicator: {
       type: Boolean,
       required: false,
       default: false,
@@ -94,6 +103,19 @@ const communicatorSchema = new Schema<
       type: String,
       required: false,
       trim: true,
+    },
+    isDefault: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    version: {
+      type: Number,
+      required: false,
+    },
+    sourceVersion: {
+      type: Number,
+      required: false,
     },
   },
   {

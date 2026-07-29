@@ -39,13 +39,14 @@ test('BoardController.getBoardsByEmail rejects unauthorized requests and serves 
     boardRepository as any,
     {} as any,
     {} as any,
+    {} as any,
   );
   const controller = new BoardController(service);
 
   await assert.rejects(
     controller.getBoardsByEmail(
       { user: { isAdmin: false, email: 'other@example.com' } },
-      'member@example.com',
+      'juanperez@gmail.com',
       { page: '1', limit: '10' },
     ),
     (err) => {
@@ -59,13 +60,13 @@ test('BoardController.getBoardsByEmail rejects unauthorized requests and serves 
   );
 
   const allowedResponse = await controller.getBoardsByEmail(
-    { user: { isAdmin: false, email: 'member@example.com' } },
-    'member@example.com',
+    { user: { isAdmin: false, email: 'juanperez@gmail.com' } },
+    'juanperez@gmail.com',
     { page: '1', limit: '10' },
   );
 
   assert.equal(allowedResponse.total, 1);
   assert.equal(allowedResponse.data[0].name, 'Mi Tablero Copia');
   assert.equal(paginateCalls.length, 1);
-  assert.deepEqual(paginateCalls[0].criteria, { email: 'member@example.com' });
+  assert.deepEqual(paginateCalls[0].criteria, { email: 'juanperez@gmail.com' });
 });

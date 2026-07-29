@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 
 import { PlanPersistenceModel } from './models/plan.persistence-model';
 import { ProductPersistenceModel } from './models/product.persistence-model';
@@ -82,8 +83,8 @@ export class BillingPersistenceService {
     return new (SubscriptionPersistenceModel as any)(payload);
   }
 
-  async saveSubscription(subscription: any): Promise<any> {
-    return subscription.save();
+  async saveSubscription(subscription: any, session?: ClientSession): Promise<any> {
+    return session ? subscription.save({ session }) : subscription.save();
   }
 
   async findAllSubscribers(
@@ -115,7 +116,7 @@ export class BillingPersistenceService {
     return new (SubscriberPersistenceEntity as any)(payload);
   }
 
-  async saveSubscriber(subscriber: any): Promise<any> {
-    return subscriber.save();
+  async saveSubscriber(subscriber: any, session?: ClientSession): Promise<any> {
+    return session ? subscriber.save({ session }) : subscriber.save();
   }
 }

@@ -14,7 +14,6 @@ import { Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 
 import { BaseController } from '../../common/base.controller';
-import { type CleanupCommunicatorBoardCopiesResult } from '../../common/communicator-board-cleanup.service';
 import {
   ApiErrorResponses,
   ApiFreeformObjectBody,
@@ -26,7 +25,6 @@ import { ReportPublicBoardDto } from './dto/report-public-board.dto';
 import {
   BoardActionResponse,
   BoardModel,
-  CleanupCommunicatorBoardCopiesResultModel,
   PaginatedBoardModelResponse,
 } from './models/board.model';
 import { BoardService } from './board.service';
@@ -130,23 +128,6 @@ export class BoardController extends BaseController {
       'createBoard',
       () => this.boardService.createBoard(req, payload),
       'Could not create board',
-    );
-  }
-
-  @Post('cleanup/default-communicator-copies')
-  @HttpCode(200)
-  @ApiSuccessResponse(
-    CleanupCommunicatorBoardCopiesResultModel,
-    'Default communicator copies cleaned',
-  )
-  @ApiErrorResponses('unauthorized', 'forbidden', 'internal')
-  async cleanupDefaultCommunicatorCopies(
-    @Req() req: Request,
-  ): Promise<CleanupCommunicatorBoardCopiesResult> {
-    return this.executeRequest(
-      'cleanupDefaultCommunicatorCopies',
-      () => this.boardService.cleanupDefaultCommunicatorCopies(req),
-      'Could not clean up default communicator copies',
     );
   }
 

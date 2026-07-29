@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 import { Types } from 'mongoose';
 
 import {
@@ -30,8 +31,8 @@ export class AccountPersistenceService {
     return new BoardPersistenceEntity(payload);
   }
 
-  async saveBoard(board: any): Promise<any> {
-    return board.save();
+  async saveBoard(board: any, session?: ClientSession): Promise<any> {
+    return session ? board.save({ session }) : board.save();
   }
 
   async deleteBoardById(id: string): Promise<void> {
@@ -105,8 +106,8 @@ export class AccountPersistenceService {
     return new CommunicatorPersistenceEntity(payload);
   }
 
-  async saveCommunicator(communicator: any): Promise<any> {
-    return communicator.save();
+  async saveCommunicator(communicator: any, session?: ClientSession): Promise<any> {
+    return session ? communicator.save({ session }) : communicator.save();
   }
 
   async deleteCommunicatorById(id: string): Promise<void> {
@@ -160,8 +161,8 @@ export class AccountPersistenceService {
       .exec();
   }
 
-  async saveUser(user: any): Promise<any> {
-    return user.save();
+  async saveUser(user: any, session?: ClientSession): Promise<any> {
+    return session ? user.save({ session }) : user.save();
   }
 
   async getOrCreateSettings(user: any): Promise<any> {

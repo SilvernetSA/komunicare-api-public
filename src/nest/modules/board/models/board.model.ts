@@ -16,6 +16,9 @@ export class BoardModel {
   @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
   publicSourceId?: string;
 
+  @ApiPropertyOptional({ example: 'komunicare' })
+  sourceBoardId?: string;
+
   @ApiPropertyOptional({
     type: 'array',
     items: { type: 'object', additionalProperties: true },
@@ -116,6 +119,19 @@ export class PublicBoardReportModel {
 
   @ApiProperty({ example: 'pending' })
   status!: string;
+
+  @ApiPropertyOptional({ example: 'Reviewed by moderation team' })
+  adminComment?: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: {
+      description: 'Public board with pictograms',
+      isPublic: true,
+    },
+  })
+  metadata?: Record<string, unknown>;
 
   @ApiProperty({ type: String, example: '2026-07-08T16:00:00.000Z' })
   createdAt!: Date | string;

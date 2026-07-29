@@ -6,6 +6,7 @@ export const config = {
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'default_jwt_secret',
-    issuer: process.env.JWT_ISSUER || 'komuni.care'
+    issuer: process.env.JWT_ISSUER || 'cboard.io'
   }
 };
+

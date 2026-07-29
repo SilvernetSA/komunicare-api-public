@@ -1,6 +1,4 @@
-export const COMMUNICATOR_COPY_SOURCES = [
-  'komunicare',
-] as const;
+export const COMMUNICATOR_COPY_SOURCES = ['komunicare'] as const;
 
 export type CommunicatorCopySource =
   (typeof COMMUNICATOR_COPY_SOURCES)[number];

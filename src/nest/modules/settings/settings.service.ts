@@ -12,17 +12,8 @@ import {
   LegacyAuthService,
 } from '../../common/legacy-auth.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
-import {
-  sanitizePublicSettingsModel,
-  sanitizePublicSettingsUpdate,
-  SettingsModel,
-} from './models/settings.model';
+import { SettingsModel } from './models/settings.model';
 import { SettingsRepository } from './settings.repository';
-
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 
 @Injectable()
 export class SettingsService {
@@ -56,31 +47,12 @@ export class SettingsService {
     return this.getSettingsByUserIdForRequester(requester, id);
   }
 
-  async getSettingsByUserIdBackoffice(
-    req: Request,
-    id: string,
-  ): Promise<SettingsModel> {
-    const requester = await this.legacyAuthService.getAuthorizedUser(req);
-    this.legacyAuthService.assertAdmin(requester, 'Not authorized.');
-    return this.getSettingsByUserIdForRequester(requester, id);
-  }
-
   async updateSettings(
     req: Request,
     id: string,
     payload: UpdateSettingsDto,
   ): Promise<SettingsModel> {
     const requester = await this.legacyAuthService.getAuthorizedUser(req);
-    return this.updateSettingsForTargetUser(requester, id, payload);
-  }
-
-  async updateSettingsBackoffice(
-    req: Request,
-    id: string,
-    payload: UpdateSettingsDto,
-  ): Promise<SettingsModel> {
-    const requester = await this.legacyAuthService.getAuthorizedUser(req);
-    this.legacyAuthService.assertAdmin(requester, 'Not authorized.');
     return this.updateSettingsForTargetUser(requester, id, payload);
   }
 
@@ -91,9 +63,9 @@ export class SettingsService {
       throw new InternalServerErrorException('Could not get settings');
     }
 
-    return sanitizePublicSettingsModel(
-      typeof settings.toJSON === 'function' ? settings.toJSON() : settings,
-    );
+    return typeof settings.toJSON === 'function'
+      ? (settings.toJSON() as SettingsModel)
+      : (settings as SettingsModel);
   }
 
   private async getSettingsByUserIdForRequester(
@@ -115,9 +87,9 @@ export class SettingsService {
       throw new NotFoundException(`Settings not found. User Id: ${id}`);
     }
 
-    return sanitizePublicSettingsModel(
-      typeof settings.toJSON === 'function' ? settings.toJSON() : settings,
-    );
+    return typeof settings.toJSON === 'function'
+      ? (settings.toJSON() as SettingsModel)
+      : (settings as SettingsModel);
   }
 
   private async updateSettingsForTargetUser(
@@ -140,33 +112,12 @@ export class SettingsService {
       );
     }
 
-    const sanitizedUpdate = sanitizePublicSettingsUpdate(
-      payload as Record<string, unknown>,
-    );
-    const nextSettings: Record<string, unknown> = {};
-
-    if (sanitizedUpdate.language !== undefined) {
-      nextSettings.language = sanitizedUpdate.language;
-    }
-
-    if (sanitizedUpdate.speech !== undefined) {
-      nextSettings.speech = sanitizedUpdate.speech;
-    }
-
-    if (sanitizedUpdate.display !== undefined) {
-      nextSettings.display = sanitizedUpdate.display;
-    }
-
-    if (sanitizedUpdate.devices !== undefined) {
-      nextSettings.devices = sanitizedUpdate.devices;
-    }
-
-    const nextNavigation = asRecord(sanitizedUpdate.navigation);
-    if (nextNavigation) {
-      Object.entries(nextNavigation).forEach(([key, value]) => {
-        nextSettings[`navigation.${key}`] = value;
-      });
-    }
+    const nextSettings: Record<string, unknown> = {
+      ...userSettings,
+      ...payload,
+      user: id,
+    };
+    delete nextSettings.id;
 
     try {
       const updatedSettings = await this.settingsRepository.updateById(
@@ -178,11 +129,7 @@ export class SettingsService {
         throw new NotFoundException('Settings not found after update');
       }
 
-      return sanitizePublicSettingsModel(
-        typeof updatedSettings.toJSON === 'function'
-          ? updatedSettings.toJSON()
-          : updatedSettings,
-      );
+      return updatedSettings.toJSON() as SettingsModel;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 
 import { BillingPersistenceService } from '../../common/billing-persistence.service';
 import {
@@ -79,7 +80,7 @@ export class SubscriptionRepository {
     return this.billingPersistence.createSubscription(payload);
   }
 
-  async save(subscription: any): Promise<any> {
-    return this.billingPersistence.saveSubscription(subscription);
+  async save(subscription: any, session?: ClientSession): Promise<any> {
+    return this.billingPersistence.saveSubscription(subscription, session);
   }
 }

@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -10,17 +9,10 @@ import moment from 'moment';
 import { Types } from 'mongoose';
 
 import {
-  CommunicatorBoardCleanupService,
-  type CleanupCommunicatorBoardCopiesResult,
-} from '../../common/communicator-board-cleanup.service';
-import {
   AuthorizedUser,
   LegacyAuthService,
 } from '../../common/legacy-auth.service';
-import { MailGatewayService } from '../../common/mail-gateway.service';
 import { BoardPersistenceEntity } from '../../common/models/board.persistence-model';
-import { PublicBoardReportPersistenceEntity } from '../../common/models/public-board-report.persistence-model';
-import { paginatedResponse } from '../../common/pagination.util';
 import { getORQuery } from '../../common/query.util';
 import { ListBoardsByEmailDto } from './dto/list-boards-by-email.dto';
 import { ReportPublicBoardDto } from './dto/report-public-board.dto';
@@ -36,8 +28,8 @@ import {
   BoardActionResponse,
   BoardModel,
   PaginatedBoardModelResponse,
-  PaginatedPublicBoardReportModelResponse,
 } from './models/board.model';
+import { BoardModerationService } from './services/board-moderation.service';
 
 const CANONICAL_OFFICIAL_BOARD_IDS = new Set(['komunicare']);
 const OFFICIAL_PUBLIC_BOARD_EXCLUSIONS = [
@@ -59,8 +51,7 @@ export class BoardService {
   constructor(
     private readonly legacyAuthService: LegacyAuthService,
     private readonly boardRepository: BoardRepository,
-    private readonly mailGateway: MailGatewayService,
-    private readonly communicatorBoardCleanupService: CommunicatorBoardCleanupService,
+    private readonly boardModerationService: BoardModerationService,
   ) {}
 
   async listBoard(
@@ -99,7 +90,7 @@ export class BoardService {
       : {};
 
     return this.boardRepository.paginate(
-      { ...searchQuery, email },
+      { ...searchQuery, email, isFixed: { $ne: true } },
       query as any,
     );
   }
@@ -164,6 +155,7 @@ export class BoardService {
     );
 
     const publicSourceId = normalizeOptionalString(payload?.publicSourceId);
+    const sourceBoardId = normalizeOptionalString(payload?.sourceBoardId);
 
     if (payload?.isPublic && publicSourceId) {
       throw new BadRequestException(
@@ -174,6 +166,7 @@ export class BoardService {
     const board = this.boardRepository.create({
       ...payload,
       publicSourceId,
+      sourceBoardId,
       lastEdited: moment().format(),
     });
     await this.boardRepository.save(board);
@@ -184,115 +177,7 @@ export class BoardService {
   async reportPublicBoard(
     payload: ReportPublicBoardDto,
   ): Promise<BoardActionResponse> {
-    const board = await this.findBoardById(payload.id);
-
-    if (!board.isPublic) {
-      throw new BadRequestException('Only public boards can be reported.');
-    }
-
-    const supportEmail =
-      process.env.KOMUNICARE_SUPPORT_EMAIL || 'info@komuni.care';
-    const whistleblowerName = payload.whistleblower?.name || 'Unknown';
-    const whistleblowerEmail = payload.whistleblower?.email || 'Unknown';
-    const whistleblowerLanguage = payload.whistleblower?.language || 'Unknown';
-
-    const report = new PublicBoardReportPersistenceEntity({
-      boardId: String(board.id || board._id || payload.id),
-      boardName: board.name,
-      author: board.author,
-      ownerEmail: board.email,
-      reason: payload.reason.trim(),
-      url: payload.url.trim(),
-      whistleblower: {
-        name: normalizeOptionalString(payload.whistleblower?.name),
-        email: normalizeOptionalString(payload.whistleblower?.email),
-        language: normalizeOptionalString(payload.whistleblower?.language),
-      },
-    });
-
-    await report.save();
-
-    const html = `
-      <h1>Public board report</h1>
-      <p>A public board was reported from Komunicare.</p>
-      <h2>Board</h2>
-      <ul>
-        <li><strong>Name:</strong> ${payload.name}</li>
-        <li><strong>Author:</strong> ${payload.author}</li>
-        <li><strong>Description:</strong> ${payload.description}</li>
-        <li><strong>Board ID:</strong> ${payload.id}</li>
-        <li><strong>Board URL:</strong> ${payload.url}</li>
-        <li><strong>Stored owner email:</strong> ${board.email}</li>
-      </ul>
-      <h2>Report</h2>
-      <p>${payload.reason}</p>
-      <h2>Whistleblower</h2>
-      <ul>
-        <li><strong>Name:</strong> ${whistleblowerName}</li>
-        <li><strong>Email:</strong> ${whistleblowerEmail}</li>
-        <li><strong>Language:</strong> ${whistleblowerLanguage}</li>
-      </ul>
-    `;
-
-    const result = await this.mailGateway.sendEmail(
-      supportEmail,
-      `[Komunicare] Reported public board: ${payload.name}`,
-      html,
-    );
-
-    if ((result as any)?.error) {
-      throw new InternalServerErrorException({
-        message: 'Error sending board report email.',
-        error:
-          (result as any).error instanceof Error
-            ? (result as any).error.message
-            : 'Unknown error',
-      });
-    }
-
-    return {
-      success: 1,
-      message: 'Mail sent successfully',
-    };
-  }
-
-  async listPublicBoardReportsBackoffice(
-    req: Request,
-    query: ListBoardsByEmailDto,
-  ): Promise<PaginatedPublicBoardReportModelResponse> {
-    await this.assertAdmin(
-      req,
-      'You are not authorized to list public board reports.',
-    );
-
-    const search = query.search || '';
-    const searchQuery: Record<string, unknown> = search.length
-      ? (getORQuery(
-          [
-            'boardId',
-            'boardName',
-            'author',
-            'ownerEmail',
-            'reason',
-            'url',
-            'whistleblower.name',
-            'whistleblower.email',
-            'whistleblower.language',
-            'status',
-          ],
-          search,
-          true,
-        ) as Record<string, unknown>)
-      : {};
-
-    return (await paginatedResponse(
-      PublicBoardReportPersistenceEntity as any,
-      { query: searchQuery },
-      {
-        ...query,
-        sort: query.sort && query.sort !== '-_id' ? query.sort : '-createdAt',
-      },
-    )) as unknown as PaginatedPublicBoardReportModelResponse;
+    return this.boardModerationService.reportPublicBoard(payload);
   }
 
   async updateBoard(
@@ -309,6 +194,10 @@ export class BoardService {
       payload?.publicSourceId !== undefined
         ? normalizeOptionalString(payload.publicSourceId)
         : normalizeOptionalString(board.publicSourceId);
+    const nextSourceBoardId =
+      payload?.sourceBoardId !== undefined
+        ? normalizeOptionalString(payload.sourceBoardId)
+        : normalizeOptionalString(board.sourceBoardId);
 
     await this.authorizeBoardAccess(
       req,
@@ -333,6 +222,10 @@ export class BoardService {
 
     if (payload?.publicSourceId !== undefined) {
       board.publicSourceId = nextPublicSourceId;
+    }
+
+    if (payload?.sourceBoardId !== undefined) {
+      board.sourceBoardId = nextSourceBoardId;
     }
 
     board.lastEdited = moment().format();
@@ -515,17 +408,6 @@ export class BoardService {
     await this.boardRepository.deleteById(id);
 
     return board.toJSON() as BoardModel;
-  }
-
-  async cleanupDefaultCommunicatorCopies(
-    req: Request,
-  ): Promise<CleanupCommunicatorBoardCopiesResult> {
-    await this.assertAdmin(
-      req,
-      'You are not authorized to cleanup communicator board copies.',
-    );
-
-    return this.communicatorBoardCleanupService.cleanupCommunicatorBoardCopies();
   }
 
   private async authorizeBoardAccess(

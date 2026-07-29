@@ -46,7 +46,7 @@ export class ListUsersQueryDto {
   @IsString()
   role?: string;
 
-  @ApiPropertyOptional({ example: 'true', description: 'true = created by backoffice, false = self-registered' })
+  @ApiPropertyOptional({ example: 'true', description: 'true = created internally, false = self-registered' })
   @IsOptional()
   @IsString()
   isByBackOffice?: string;

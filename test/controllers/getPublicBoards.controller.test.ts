@@ -33,6 +33,7 @@ test('BoardService.getPublicBoards keeps isPublic and excludes official system b
     boardRepository as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 
   const result = await service.getPublicBoards({}, { page: '1', limit: '10' });
@@ -96,6 +97,7 @@ test('BoardService.getPublicBoards keeps search support while filtering official
   const service = new BoardService(
     legacyAuthService as any,
     boardRepository as any,
+    {} as any,
     {} as any,
     {} as any,
   );

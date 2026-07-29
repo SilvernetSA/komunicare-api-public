@@ -51,3 +51,22 @@ test('buildMailGatewayConfig falls back to SES config when SMTP envs are not pre
 
   restoreEnv();
 });
+
+test('buildMailGatewayConfig does not inject SES auth when credentials are missing', () => {
+  restoreEnv();
+
+  delete process.env.SMTP_HOST;
+  delete process.env.SMTP_PORT;
+  delete process.env.SMTP_SECURE;
+  delete process.env.SMTP_USER;
+  delete process.env.SMTP_PASS;
+  delete process.env.SES_USERNAME;
+  delete process.env.SES_PASSWORD;
+
+  const config = buildMailGatewayConfig(process.env);
+
+  assert.equal(config.host, 'email-smtp.us-east-1.amazonaws.com');
+  assert.equal(config.auth, undefined);
+
+  restoreEnv();
+});

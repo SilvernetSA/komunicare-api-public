@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 import {
   PaginatedResponse,
   RequestQuery,
@@ -23,8 +24,8 @@ export class UserRepository {
     return this.accountPersistence.findUserByIdWithoutSettings(id);
   }
 
-  async save(user: any): Promise<any> {
-    return this.accountPersistence.saveUser(user);
+  async save(user: any, session?: ClientSession): Promise<any> {
+    return this.accountPersistence.saveUser(user, session);
   }
 
   async getOrCreateSettings(user: any): Promise<any> {

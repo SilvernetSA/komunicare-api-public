@@ -16,7 +16,6 @@ import { TranslateModule } from './modules/translate/translate.module';
 import { LocationModule } from './modules/location/location.module';
 import { MediaModule } from './modules/media/media.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
-import { SystemBoardsModule } from './modules/system-boards/system-boards.module';
 import { GptModule } from './modules/gpt/gpt.module';
 
 @Module({
@@ -40,7 +39,6 @@ import { GptModule } from './modules/gpt/gpt.module';
     LocationModule,
     MediaModule,
     WebhookModule,
-    SystemBoardsModule,
     GptModule,
   ],
 })

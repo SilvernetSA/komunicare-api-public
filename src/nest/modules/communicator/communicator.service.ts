@@ -204,6 +204,26 @@ export class CommunicatorService {
       }
     }
 
+    if (copySourceCommunicatorId) {
+      const existingCopyByCommunicatorId = await this.communicatorRepository.findOne({
+        email: payload.email,
+        copySourceCommunicatorId,
+      });
+
+      if (existingCopyByCommunicatorId) {
+        throw new ConflictException({
+          message:
+            'A personal copy for this communicator source already exists for this user.',
+          existingCommunicatorId: String(
+            existingCopyByCommunicatorId._id ||
+              existingCopyByCommunicatorId.id ||
+              '',
+          ),
+          copySourceCommunicatorId,
+        });
+      }
+    }
+
     if (publicSourceId) {
       const existingPublicCopy = await this.communicatorRepository.findOne({
         email: payload.email,
@@ -329,6 +349,28 @@ export class CommunicatorService {
             conflictingCopy._id || conflictingCopy.id || '',
           ),
           copySource: nextCopySource,
+        });
+      }
+    }
+
+    if (nextCopySourceCommunicatorId) {
+      const conflictingCopyByCommunicatorId =
+        await this.communicatorRepository.findOne({
+          email: nextEmail,
+          copySourceCommunicatorId: nextCopySourceCommunicatorId,
+          _id: { $ne: id },
+        });
+
+      if (conflictingCopyByCommunicatorId) {
+        throw new ConflictException({
+          message:
+            'A personal copy for this communicator source already exists for this user.',
+          existingCommunicatorId: String(
+            conflictingCopyByCommunicatorId._id ||
+              conflictingCopyByCommunicatorId.id ||
+              '',
+          ),
+          copySourceCommunicatorId: nextCopySourceCommunicatorId,
         });
       }
     }

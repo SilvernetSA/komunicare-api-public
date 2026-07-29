@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 
 import {
   type RequestQuery,
@@ -42,8 +43,8 @@ export class CommunicatorRepository {
     return this.accountPersistence.createCommunicator(payload);
   }
 
-  async save(communicator: any): Promise<any> {
-    return this.accountPersistence.saveCommunicator(communicator);
+  async save(communicator: any, session?: ClientSession): Promise<any> {
+    return this.accountPersistence.saveCommunicator(communicator, session);
   }
 
   async deleteById(id: string): Promise<void> {

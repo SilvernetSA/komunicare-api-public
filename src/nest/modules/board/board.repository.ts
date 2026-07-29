@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 
 import { type RequestQuery } from '../../common/pagination.util';
 import { AccountPersistenceService } from '../../common/account-persistence.service';
@@ -28,8 +29,8 @@ export class BoardRepository {
     return this.accountPersistence.createBoard(payload);
   }
 
-  async save(board: any): Promise<any> {
-    return this.accountPersistence.saveBoard(board);
+  async save(board: any, session?: ClientSession): Promise<any> {
+    return this.accountPersistence.saveBoard(board, session);
   }
 
   async deleteById(id: string): Promise<void> {

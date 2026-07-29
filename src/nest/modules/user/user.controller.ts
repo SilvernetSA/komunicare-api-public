@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  GoneException,
   HttpCode,
   Param,
   Post,
@@ -62,15 +63,10 @@ export class UserController extends BaseController {
   }
 
   @Post()
-  @HttpCode(200)
-  @ApiSuccessResponse(UserActionResponse, 'User created')
-  @ApiErrorResponses('badRequest', 'conflict', 'internal')
-  createUser(@Body() payload: CreateUserDto): Promise<UserActionResponse> {
-    return this.executeRequest(
-      'createUser',
-      () => this.userService.createUser(payload),
-      'Could not create user',
-    );
+  @HttpCode(410)
+  @ApiOperation({ summary: 'Self-registration disabled' })
+  createUser(): never {
+    throw new GoneException('Self-registration is disabled. Contact an administrator.');
   }
 
   @Post('resend-verification')

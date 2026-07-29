@@ -54,7 +54,7 @@ test('paginatedResponse normalizes params and applies pagination to the query mo
   const response = await paginatedResponse(
     model,
     {
-      query: { email: 'member@example.com' },
+      query: { email: 'juanperez@gmail.com' },
       populate: [{ path: 'boards' }],
     },
     {
@@ -67,8 +67,8 @@ test('paginatedResponse normalizes params and applies pagination to the query mo
     },
   );
 
-  assert.deepEqual(state.query, { email: 'member@example.com' });
-  assert.deepEqual(state.countQuery, { email: 'member@example.com' });
+  assert.deepEqual(state.query, { email: 'juanperez@gmail.com' });
+  assert.deepEqual(state.countQuery, { email: 'juanperez@gmail.com' });
   assert.equal(state.sort, '-name');
   assert.equal(state.skip, 8);
   assert.equal(state.limit, 5);

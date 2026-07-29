@@ -1,17 +1,116 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { CommunicatorPersistenceEntity } from '../../src/nest/common/models/communicator.persistence-model';
 import { PublicBoardReportPersistenceEntity } from '../../src/nest/common/models/public-board-report.persistence-model';
 import { BoardService } from '../../src/nest/modules/board/board.service';
 
 const createLegacyAuthService = () => ({
   async getAuthorizedUser() {
     return {
-      email: 'owner@example.com',
+      email: 'damianclluch@gmail.com',
       isAdmin: false,
     };
   },
   assertSameUserOrAdmin() {},
+  assertSameUserOrAdminOrSupervisor() {},
+});
+
+test('BoardService.getBoard allows capacitador users to load another user private board', async () => {
+  const boardRepository = {
+    async findById() {
+      return {
+        _id: '6866bcb1e9b4ada1dc47a70c',
+        id: '6866bcb1e9b4ada1dc47a70c',
+        email: 'patient@example.com',
+        isPublic: false,
+        toJSON() {
+          return {
+            id: '6866bcb1e9b4ada1dc47a70c',
+            email: 'patient@example.com',
+            isPublic: false,
+          };
+        },
+      };
+    },
+  };
+
+  const service = new BoardService(
+    {
+      async getAuthorizedUser() {
+        return {
+          email: 'trainer@example.com',
+          role: 'capacitador',
+          isAdmin: false,
+        };
+      },
+      assertSameUserOrAdmin() {},
+      assertSameUserOrAdminOrSupervisor() {},
+    } as any,
+    boardRepository as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const result = await service.getBoard({} as any, '6866bcb1e9b4ada1dc47a70c');
+
+  assert.equal(result.id, '6866bcb1e9b4ada1dc47a70c');
+  assert.equal(result.email, 'patient@example.com');
+});
+
+test('BoardService.getBoard allows users to load private boards included in their communicator', async () => {
+  const originalFindOne = (CommunicatorPersistenceEntity as any).findOne;
+
+  (CommunicatorPersistenceEntity as any).findOne = () => ({
+    lean() {
+      return this;
+    },
+    exec() {
+      return Promise.resolve({
+        _id: 'communicator-1',
+        email: 'damianclluch@gmail.com',
+        boards: ['6866bcb1e9b4ada1dc47a70d'],
+      });
+    },
+  });
+
+  try {
+    const boardRepository = {
+      async findById() {
+        return {
+          _id: '6866bcb1e9b4ada1dc47a70d',
+          id: '6866bcb1e9b4ada1dc47a70d',
+          email: 'patient@example.com',
+          isPublic: false,
+          tiles: [{ label: 'mate' }],
+          toJSON() {
+            return {
+              id: '6866bcb1e9b4ada1dc47a70d',
+              email: 'patient@example.com',
+              isPublic: false,
+              tiles: [{ label: 'mate' }],
+            };
+          },
+        };
+      },
+    };
+
+    const service = new BoardService(
+      createLegacyAuthService() as any,
+      boardRepository as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+    const result = await service.getBoard({} as any, '6866bcb1e9b4ada1dc47a70d');
+
+    assert.equal(result.id, '6866bcb1e9b4ada1dc47a70d');
+    assert.deepEqual(result.tiles, [{ label: 'mate' }]);
+  } finally {
+    (CommunicatorPersistenceEntity as any).findOne = originalFindOne;
+  }
 });
 
 test('BoardService.createBoard rejects publishing copied public boards', async () => {
@@ -29,6 +128,7 @@ test('BoardService.createBoard rejects publishing copied public boards', async (
     boardRepository as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 
   await assert.rejects(
@@ -36,7 +136,7 @@ test('BoardService.createBoard rejects publishing copied public boards', async (
       service.createBoard({} as any, {
         name: 'Copied public board',
         author: 'Damian',
-        email: 'owner@example.com',
+        email: 'damianclluch@gmail.com',
         isPublic: true,
         publicSourceId: '67af7a87b764d6e7efcf2d22',
       }),
@@ -57,7 +157,7 @@ test('BoardService.updateBoard rejects publishing copied public boards', async (
       return {
         _id: '67af7a87b764d6e7efcf2d31',
         id: '67af7a87b764d6e7efcf2d31',
-        email: 'owner@example.com',
+        email: 'damianclluch@gmail.com',
         isPublic: false,
         publicSourceId: '67af7a87b764d6e7efcf2d22',
       };
@@ -70,6 +170,7 @@ test('BoardService.updateBoard rejects publishing copied public boards', async (
   const service = new BoardService(
     createLegacyAuthService() as any,
     boardRepository as any,
+    {} as any,
     {} as any,
     {} as any,
   );
@@ -109,6 +210,8 @@ test('BoardService.reportPublicBoard persists report metadata and keeps email de
         language: this.whistleblower?.language,
       },
       status: this.status,
+      adminComment: this.adminComment,
+      metadata: this.metadata,
       createdAt: this.createdAt,
     });
 
@@ -138,6 +241,7 @@ test('BoardService.reportPublicBoard persists report metadata and keeps email de
       createLegacyAuthService() as any,
       boardRepository as any,
       mailGateway as any,
+      {} as any,
       {} as any,
     );
 
@@ -170,6 +274,14 @@ test('BoardService.reportPublicBoard persists report metadata and keeps email de
         language: 'es-AR',
       },
       status: 'pending',
+      adminComment: '',
+      metadata: {
+        description: 'Payload description',
+        payloadName: 'Payload board name',
+        payloadAuthor: 'Payload author',
+        isPublic: true,
+        ownerEmail: 'owner@example.com',
+      },
       createdAt: savedReports[0].createdAt,
     });
     assert.ok(savedReports[0].createdAt instanceof Date);
@@ -231,7 +343,9 @@ test('BoardService.listPublicBoardReportsBackoffice requires admin and sorts by 
           return { isAdmin: true, role: 'admin' };
         },
         assertSameUserOrAdmin() {},
+        assertSameUserOrAdminOrSupervisor() {},
       } as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,
@@ -256,7 +370,9 @@ test('BoardService.listPublicBoardReportsBackoffice requires admin and sorts by 
           return { isAdmin: false, role: 'user' };
         },
         assertSameUserOrAdmin() {},
+        assertSameUserOrAdminOrSupervisor() {},
       } as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,
@@ -277,5 +393,129 @@ test('BoardService.listPublicBoardReportsBackoffice requires admin and sorts by 
     (PublicBoardReportPersistenceEntity as any).find = originalFind;
     (PublicBoardReportPersistenceEntity as any).countDocuments =
       originalCountDocuments;
+  }
+});
+
+test('BoardService.reportPublicBoard requires a useful reason', async () => {
+  const boardRepository = {
+    async findById() {
+      return {
+        _id: '67af7a87b764d6e7efcf2d31',
+        id: '67af7a87b764d6e7efcf2d31',
+        name: 'Public board name',
+        author: 'Stored author',
+        email: 'owner@example.com',
+        isPublic: true,
+      };
+    },
+  };
+
+  const service = new BoardService(
+    createLegacyAuthService() as any,
+    boardRepository as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  await assert.rejects(
+    () =>
+      service.reportPublicBoard({
+        id: '67af7a87b764d6e7efcf2d31',
+        name: 'Payload board name',
+        author: 'Payload author',
+        description: 'Payload description',
+        url: 'https://komuni.care/board/67af7a87b764d6e7efcf2d31',
+        reason: 'short',
+        whistleblower: {
+          name: 'Juan Perez',
+          email: 'juan@example.com',
+          language: 'es-AR',
+        },
+      }),
+    (error: any) => {
+      assert.equal(error?.status, 400);
+      assert.equal(
+        error?.response?.message,
+        'Report reason must include at least 10 characters.',
+      );
+      return true;
+    },
+  );
+});
+
+test('BoardService.deleteBoard notifies the affected user when an admin removes a board', async () => {
+  const originalFind = (CommunicatorPersistenceEntity as any).find;
+  const notifications: Array<{
+    actor: Record<string, unknown>;
+    board: Record<string, unknown>;
+  }> = [];
+
+  (CommunicatorPersistenceEntity as any).find = () => ({
+    select() {
+      return this;
+    },
+    lean() {
+      return this;
+    },
+    async exec() {
+      return [];
+    },
+  });
+
+  try {
+    const boardRepository = {
+      async findById() {
+        return {
+          _id: '67af7a87b764d6e7efcf2d31',
+          id: '67af7a87b764d6e7efcf2d31',
+          name: 'Board to delete',
+          email: 'owner@example.com',
+          toJSON() {
+            return {
+              id: '67af7a87b764d6e7efcf2d31',
+              name: 'Board to delete',
+              email: 'owner@example.com',
+            };
+          },
+        };
+      },
+      async deleteById() {
+        return undefined;
+      },
+    };
+
+    const service = new BoardService(
+      {
+        async getAuthorizedUser() {
+          return { email: 'admin@example.com', isAdmin: true, role: 'admin' };
+        },
+        assertSameUserOrAdmin() {},
+        assertSameUserOrAdminOrSupervisor() {},
+      } as any,
+      boardRepository as any,
+      {} as any,
+      {} as any,
+      {
+        async notifyBoardDeleted(
+          actor: Record<string, unknown>,
+          board: Record<string, unknown>,
+        ) {
+          notifications.push({ actor, board });
+        },
+      } as any,
+    );
+
+    const result = await service.deleteBoard(
+      {} as any,
+      '67af7a87b764d6e7efcf2d31',
+    );
+
+    assert.equal(result.name, 'Board to delete');
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].actor.email, 'admin@example.com');
+    assert.equal(notifications[0].board.email, 'owner@example.com');
+  } finally {
+    (CommunicatorPersistenceEntity as any).find = originalFind;
   }
 });

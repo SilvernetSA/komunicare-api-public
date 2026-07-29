@@ -178,7 +178,7 @@ export const bootstrapNestApplication = async (
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Komunicare API')
     .setDescription(
-      'NestJS-powered backend for Komunicare, including boards, communicators, users, subscriptions, media and supporting resources.',
+      'NestJS-powered backend for Komunicare, including boards, communicators, users, subscriptions, GPT, media and supporting resources.',
     )
     .setVersion('1.3.1')
     .addBearerAuth(

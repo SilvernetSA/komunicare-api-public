@@ -42,25 +42,23 @@ export class UpdateCommunicatorDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: '../logo.svg' })
-  @IsOptional()
-  @IsString()
-  caption?: string;
-
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
 
-  @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
+  @ApiPropertyOptional({
+    example: '67af7a87b764d6e7efcf2d22',
+    description: 'ID del comunicador público de origen cuando este registro es una copia personal.',
+  })
   @IsOptional()
   @IsString()
   publicSourceId?: string;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({ example: 'https://cdn.komuni.care/media/communicator-image.png' })
   @IsOptional()
-  @IsBoolean()
-  isDefault?: boolean;
+  @IsString()
+  caption?: string;
 
   @ApiPropertyOptional({ example: 'komunicare' })
   @IsOptional()
@@ -97,4 +95,12 @@ export class UpdateCommunicatorDto {
   @IsOptional()
   @IsString()
   copySourceCommunicatorId?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Marks this communicator as the user\'s default home. Setting to true unsets isDefault on all other communicators for the same email.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }

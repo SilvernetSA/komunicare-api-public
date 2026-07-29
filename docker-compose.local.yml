@@ -1,12 +1,12 @@
-name: komunicare-local
+name: komunicare-public-local
 
 services:
   api:
-    container_name: komunicare-api-local
+    container_name: komunicare-api-public-local
     build:
       context: .
       dockerfile: Dockerfile
-    image: komunicare-api-local
+    image: komunicare-api-public-local
     env_file:
       - .env.local
     environment:
@@ -18,8 +18,9 @@ services:
       BACKOFFICE_URL: http://localhost:3001
       NODE_ENV: development
       DEV_ENV_WITH_HTTPS: ${DEV_ENV_WITH_HTTPS:-0}
+      PORT: 10011
     ports:
-      - "10010:10010"
+      - "10011:10011"
     depends_on:
       - mailhog
     restart: unless-stopped

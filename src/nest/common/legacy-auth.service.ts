@@ -124,6 +124,21 @@ export class LegacyAuthService {
     }
   }
 
+  assertSameUserOrAdminOrSupervisor(
+    user: AuthorizedUser,
+    email: string,
+    message: string,
+  ): void {
+    const role = user.role;
+    const isPrivileged = Boolean(
+      user.isAdmin || role === 'admin' || role === 'therapist' || role === 'capacitador',
+    );
+
+    if (!isPrivileged && user.email !== email) {
+      throw new ForbiddenException(message);
+    }
+  }
+
   assertAdmin(user: AuthorizedUser, message: string): void {
     const isAdmin = Boolean(user.isAdmin || user.role === 'admin');
 
@@ -136,7 +151,7 @@ export class LegacyAuthService {
     const role = user.role;
     const isAdmin = Boolean(user.isAdmin || role === 'admin');
 
-    if (!isAdmin && role !== 'therapist') {
+    if (!isAdmin && role !== 'therapist' && role !== 'capacitador') {
       throw new ForbiddenException(message);
     }
   }

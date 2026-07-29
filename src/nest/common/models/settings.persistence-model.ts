@@ -9,6 +9,7 @@ export interface SettingsPersistenceDocument extends Document {
   language?: Record<string, unknown>;
   speech?: Record<string, unknown>;
   display?: Record<string, unknown>;
+  faceTracking?: Record<string, unknown>;
   navigation?: Record<string, unknown>;
   user: mongoose.Types.ObjectId;
   devices?: SettingsPersistenceDevice[];
@@ -20,6 +21,9 @@ const settingsSchema = new Schema<SettingsPersistenceDocument>(
     language: {},
     speech: {},
     display: {},
+    // Mixed object so the face-cursor settings persist
+    // per user: enabled, dwellTime and the OneEuro cursor tuning.
+    faceTracking: {},
     navigation: {
       active: { type: Boolean, default: false },
       shareShowActive: { type: Boolean, default: false },
@@ -29,6 +33,8 @@ const settingsSchema = new Schema<SettingsPersistenceDocument>(
       quickUnlockActive: { type: Boolean, default: false },
       removeOutputActive: { type: Boolean, default: false },
       vocalizeFolders: { type: Boolean, default: true },
+      liveMode: { type: Boolean, default: false },
+      improvePhraseActive: { type: Boolean, default: true },
     },
     user: {
       type: Schema.Types.ObjectId,

@@ -26,7 +26,7 @@ test('BoardController.getBoardsByEmail delegates to BoardService.getBoardsByEmai
 
   const req = { headers: { authorization: 'Bearer token' } };
   const query = { page: '1', limit: '10' };
-  const email = 'member@example.com';
+  const email = 'juanperez@gmail.com';
 
   const result = await controller.getBoardsByEmail(req, email, query);
 

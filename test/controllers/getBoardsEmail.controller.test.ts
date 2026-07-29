@@ -27,6 +27,7 @@ test('BoardService.getBoardsByEmail throws 403 when a non-admin user requests an
     boardRepository as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 
   await assert.rejects(
@@ -47,7 +48,7 @@ test('BoardService.getBoardsByEmail paginates with email merged into the query a
   const legacyAuthService = {
     async getAuthorizedUser() {
       return {
-        email: 'member@example.com',
+        email: 'juanperez@gmail.com',
         isAdmin: false,
       };
     },
@@ -73,17 +74,18 @@ test('BoardService.getBoardsByEmail paginates with email merged into the query a
     boardRepository as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 
   const result = await service.getBoardsByEmail(
     {},
-    'member@example.com',
+    'juanperez@gmail.com',
     { search: 'home', page: '1', limit: '10' },
   );
 
   assert.equal(paginateCalls.length, 1);
   const criteria = paginateCalls[0][0] as any;
-  assert.equal(criteria.email, 'member@example.com');
+  assert.equal(criteria.email, 'juanperez@gmail.com');
   assert.ok(Array.isArray(criteria.$or));
   assert.equal(criteria.$or.length, 2);
   assert.equal(criteria.$or[0].name.$regex.source, 'home');

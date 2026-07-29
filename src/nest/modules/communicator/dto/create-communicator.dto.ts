@@ -39,26 +39,29 @@ export class CreateCommunicatorDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: '../logo.svg' })
-  @IsOptional()
-  @IsString()
-  caption?: string;
-
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
 
-  @ApiPropertyOptional({ example: '67af7a87b764d6e7efcf2d22' })
+  @ApiPropertyOptional({
+    example: '67af7a87b764d6e7efcf2d22',
+    description: 'ID del comunicador público de origen cuando este registro es una copia personal.',
+  })
   @IsOptional()
   @IsString()
   publicSourceId?: string;
+
+  @ApiPropertyOptional({ example: 'https://cdn.komuni.care/media/communicator-image.png' })
+  @IsOptional()
+  @IsString()
+  caption?: string;
 
   @ApiProperty({ example: 'komunicare' })
   @IsString()
   rootBoard!: string;
 
-  @ApiProperty({ type: [String], example: ['boardId1', 'boardId2'] })
+  @ApiProperty({ type: [String], example: ['root', 'komunicare', 'jjmlUcQs19'] })
   @IsArray()
   @IsString({ each: true })
   boards!: string[];

@@ -145,13 +145,3 @@ export class SendUserEmailResponse extends UserActionResponse {
   @ApiPropertyOptional({ example: '01000192d7c0d364-12345678-1234-1234-1234-123456789012-000000' })
   sesMessageId?: string;
 }
-
-export class EmailAvailabilityResponse {
-  @ApiProperty({ example: true })
-  available!: boolean;
-}
-
-export class RemoveUserBackofficeResponse {
-  @ApiProperty({ type: () => UserModel, nullable: true })
-  user!: UserModel | null;
-}

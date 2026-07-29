@@ -13,6 +13,7 @@ export interface BoardPersistenceDocument extends Document {
   email: string;
   isPublic?: boolean;
   publicSourceId?: string;
+  sourceBoardId?: string;
   tiles?: unknown[];
   cellSize?: string;
   locale?: string;
@@ -50,6 +51,11 @@ const boardSchema = new Schema<BoardPersistenceDocument, BoardPersistenceModel>(
       default: false,
     },
     publicSourceId: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    sourceBoardId: {
       type: String,
       required: false,
       trim: true,
