@@ -17,6 +17,7 @@ import { LocationModule } from './modules/location/location.module';
 import { MediaModule } from './modules/media/media.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { GptModule } from './modules/gpt/gpt.module';
+import { SystemBoardsModule } from './modules/system-boards/system-boards.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { GptModule } from './modules/gpt/gpt.module';
     MediaModule,
     WebhookModule,
     GptModule,
+    SystemBoardsModule,
   ],
 })
 export class NestAppModule {}
