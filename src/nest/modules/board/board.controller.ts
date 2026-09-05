@@ -21,6 +21,7 @@ import {
   ApiSuccessResponse,
 } from '../../common/swagger.decorators';
 import { ListBoardsByEmailDto } from './dto/list-boards-by-email.dto';
+import { CopyPublicBoardDto } from './dto/copy-public-board.dto';
 import { ReportPublicBoardDto } from './dto/report-public-board.dto';
 import {
   BoardActionResponse,
@@ -92,6 +93,21 @@ export class BoardController extends BaseController {
       'reportPublicBoard',
       () => this.boardService.reportPublicBoard(payload),
       'Could not report public board',
+    );
+  }
+
+  @Post('copy-public')
+  @HttpCode(200)
+  @ApiSuccessResponse(Object, 'Public board copied to a personal communicator')
+  @ApiErrorResponses('badRequest', 'forbidden', 'notFound', 'internal')
+  async copyPublicBoard(
+    @Req() req: Request,
+    @Body() payload: CopyPublicBoardDto,
+  ): Promise<Record<string, unknown>> {
+    return this.executeRequest(
+      'copyPublicBoard',
+      () => this.boardService.copyPublicBoard(req, payload),
+      'Could not copy public board',
     );
   }
 

@@ -448,6 +448,181 @@ export class BoardService {
     return board.toJSON() as BoardModel;
   }
 
+  async copyPublicBoard(
+    req: Request,
+    payload: CopyPublicBoardDto,
+  ): Promise<Record<string, unknown>> {
+    const user = await this.legacyAuthService.getAuthorizedUser(req);
+    const communicator = await (CommunicatorPersistenceEntity as any)
+      .findById(payload.communicatorId)
+      .exec();
+
+    if (!communicator) {
+      throw new NotFoundException(
+        `Communicator does not exist. Communicator ID: ${payload.communicatorId}`,
+      );
+    }
+
+    const isPrivileged = isPrivilegedContentActor(user);
+    if (isOfficialCommunicator(communicator) && !isPrivileged) {
+      throw new ForbiddenException('Official/system communicators cannot receive user copies.');
+    }
+    if (!isPrivileged && String(communicator.email || '').trim() !== user.email) {
+      throw new ForbiddenException('You can only copy boards to your own communicator.');
+    }
+
+    const sourceBoard = await this.findBoardByReference(payload.sourceBoardId);
+    if (!sourceBoard?.isPublic || isOfficialBoard(sourceBoard)) {
+      throw new BadRequestException('Only original public boards can be copied.');
+    }
+    if (String(sourceBoard.email || '').trim() === user.email) {
+      throw new BadRequestException('You cannot copy your own public board.');
+    }
+
+    const destinationBoardId =
+      normalizeOptionalString(payload.destinationBoardId) ||
+      normalizeOptionalString(communicator.rootBoard);
+    if (!destinationBoardId) {
+      throw new BadRequestException('A destination root board is required.');
+    }
+
+    const communicatorBoardIds = Array.isArray(communicator.boards)
+      ? communicator.boards.map((boardId: unknown) => String(boardId || '').trim())
+      : [];
+    if (!communicatorBoardIds.includes(destinationBoardId)) {
+      throw new BadRequestException(
+        'The destination board is not attached to the target communicator.',
+      );
+    }
+
+    const destinationBoard = await this.findBoardByReference(destinationBoardId);
+    if (
+      !destinationBoard ||
+      String(destinationBoard.email || '').trim() !== String(communicator.email || '').trim() ||
+      isOfficialBoard(destinationBoard)
+    ) {
+      throw new ForbiddenException('The destination board is not writable by the target user.');
+    }
+
+    const existingCopy = await (BoardPersistenceEntity as any)
+      .findOne({ email: communicator.email, publicSourceId: payload.sourceBoardId })
+      .lean()
+      .exec();
+    if (existingCopy) {
+      throw new ConflictException('This public board is already copied to the target user.');
+    }
+
+    return withTransaction(async (session) => {
+      const sourceBoards = await this.collectBoardGraph(payload.sourceBoardId);
+      const sourceBoardsByReference = indexBoardsByReference(sourceBoards);
+      const sourceReferences = sourceBoards
+        .map((board) => getBoardDocumentId(board))
+        .filter((boardId): boardId is string => Boolean(boardId));
+      const boardIdMap = new Map(
+        sourceReferences.map((boardId) => [boardId, new Types.ObjectId().toHexString()]),
+      );
+      const copiedBoardIds: string[] = [];
+
+      for (const sourceReference of sourceReferences) {
+        const source = sourceBoardsByReference.get(sourceReference);
+        const copiedBoardId = boardIdMap.get(sourceReference);
+        if (!source || !copiedBoardId) continue;
+
+        const copiedBoard = this.boardRepository.create({
+          _id: copiedBoardId,
+          name: source.name,
+          author: user.name || source.author,
+          email: communicator.email,
+          isPublic: false,
+          publicSourceId: source.isPublic ? sourceReference : undefined,
+          sourceBoardId: sourceReference,
+          tiles: remapCopiedBoardTiles(cloneComparableValue(source.tiles), boardIdMap),
+          cellSize: source.cellSize,
+          locale: source.locale,
+          caption: source.caption,
+          format: source.format,
+          description: source.description,
+          isFixed: false,
+          grid: cloneComparableValue(source.grid),
+        });
+        const savedBoard = await this.boardRepository.save(copiedBoard, session);
+        const persistedBoardId = getBoardDocumentId(savedBoard || copiedBoard);
+        if (!persistedBoardId) {
+          throw new BadRequestException('Could not persist the copied board graph.');
+        }
+        copiedBoardIds.push(persistedBoardId);
+      }
+
+      const copiedRootBoardId = boardIdMap.get(
+        getBoardDocumentId(sourceBoard) || payload.sourceBoardId,
+      );
+      if (!copiedRootBoardId) {
+        throw new BadRequestException('Could not resolve the copied root board.');
+      }
+
+      destinationBoard.tiles = [
+        ...(Array.isArray(destinationBoard.tiles) ? destinationBoard.tiles : []),
+        {
+          id: new Types.ObjectId().toHexString(),
+          label: sourceBoard.name,
+          loadBoard: copiedRootBoardId,
+          type: 'folder',
+          linkedBoard: true,
+        },
+      ];
+      await destinationBoard.save({ session });
+
+      communicator.boards = Array.from(
+        new Set([...communicatorBoardIds, ...copiedBoardIds]),
+      );
+      await communicator.save({ session });
+
+      return {
+        board: copiedRootBoardId,
+        communicator: communicator.toJSON ? communicator.toJSON() : communicator,
+      };
+    });
+  }
+
+  private async findBoardByReference(reference: string): Promise<any | null> {
+    const query = buildBoardReferenceQuery([reference]);
+    if (!query) return null;
+    return (BoardPersistenceEntity as any).findOne(query).exec();
+  }
+
+  private async collectBoardGraph(rootReference: string): Promise<any[]> {
+    const boardsByReference = new Map<string, any>();
+    const pending = [rootReference];
+    const visited = new Set<string>();
+
+    while (pending.length) {
+      const next = normalizeOptionalString(pending.shift());
+      if (!next || visited.has(next)) continue;
+      visited.add(next);
+
+      const query = buildBoardReferenceQuery([next]);
+      if (!query) continue;
+      const boards = await (BoardPersistenceEntity as any).find(query).lean().exec();
+      boards.forEach((board: any) => {
+        const boardId = getBoardDocumentId(board);
+        if (!boardId) return;
+        if (!boardsByReference.has(boardId)) boardsByReference.set(boardId, board);
+        [board.sourceBoardId, board.boardId, board._id, board.id]
+          .map((reference) => normalizeOptionalString(reference))
+          .filter((reference): reference is string => Boolean(reference))
+          .forEach((reference) => {
+            if (!boardsByReference.has(reference)) boardsByReference.set(reference, board);
+          });
+        (Array.isArray(board.tiles) ? board.tiles : []).forEach((tile: any) => {
+          const childReference = normalizeOptionalString(tile?.loadBoard);
+          if (childReference && !visited.has(childReference)) pending.push(childReference);
+        });
+      });
+    }
+
+    return Array.from(new Set(boardsByReference.values()));
+  }
+
   private async authorizeBoardAccess(
     req: Request,
     email: string,
