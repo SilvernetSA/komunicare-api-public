@@ -37,6 +37,41 @@ export const normalizeOptionalString = (value: unknown): string | undefined => {
 export const hasSourceReference = (value: unknown): boolean =>
   Boolean(normalizeOptionalString(value));
 
+export const isOfficialCommunicator = (communicator: any): boolean =>
+  Boolean(
+    communicator?.isSystemCommunicator ||
+      normalizeOptionalString(communicator?.communicatorKey) ||
+      OFFICIAL_ROOT_BOARD_SET.has(String(communicator?.rootBoard || '').trim()),
+  );
+
+export const isOfficialBoard = (board: any): boolean => {
+  const boardId = normalizeOptionalString(
+    board?.boardId || board?._id || board?.id,
+  );
+  const communicator = normalizeOptionalString(board?.communicator);
+  const email = normalizeOptionalString(board?.email)?.toLowerCase();
+  const author = normalizeOptionalString(board?.author)?.toLowerCase();
+
+  return Boolean(
+    board?.isSystemBoard ||
+      (boardId && OFFICIAL_ROOT_BOARD_SET.has(boardId)) ||
+      (communicator && OFFICIAL_ROOT_BOARD_SET.has(communicator)) ||
+      (email && OFFICIAL_SYSTEM_BOARD_EMAIL_SET.has(email)) ||
+      (author && OFFICIAL_SYSTEM_BOARD_AUTHOR_SET.has(author)),
+  );
+};
+
+export const isPrivilegedContentActor = (user: {
+  isAdmin?: boolean;
+  role?: string;
+}): boolean =>
+  Boolean(
+    user?.isAdmin ||
+      user?.role === 'admin' ||
+      user?.role === 'therapist' ||
+      user?.role === 'capacitador',
+  );
+
 export const toObjectIdOrValue = (value: string): Types.ObjectId | string =>
   Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : value;
 

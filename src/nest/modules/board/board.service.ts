@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -13,11 +14,23 @@ import {
   LegacyAuthService,
 } from '../../common/legacy-auth.service';
 import { BoardPersistenceEntity } from '../../common/models/board.persistence-model';
+import { withTransaction } from '../../common/with-transaction';
 import { getORQuery } from '../../common/query.util';
 import { ListBoardsByEmailDto } from './dto/list-boards-by-email.dto';
 import { ReportPublicBoardDto } from './dto/report-public-board.dto';
 import { CommunicatorPersistenceEntity } from '../../common/models/communicator.persistence-model';
 import { BoardRepository } from './board.repository';
+import { CopyPublicBoardDto } from './dto/copy-public-board.dto';
+import {
+  buildBoardReferenceQuery,
+  cloneComparableValue,
+  getBoardDocumentId,
+  indexBoardsByReference,
+  isOfficialBoard,
+  isOfficialCommunicator,
+  isPrivilegedContentActor,
+  remapCopiedBoardTiles,
+} from '../communicator/communicator.helpers';
 import {
   OFFICIAL_COMMUNICATOR_IDS,
   OFFICIAL_ROOT_BOARD_IDS,
@@ -154,6 +167,25 @@ export class BoardService {
       'You are not authorized to create a board for this user.',
     );
 
+    const requester = await this.legacyAuthService.getAuthorizedUser(req);
+    const requestedParentBoardId = normalizeOptionalString(
+      payload?.parentBoardId || payload?.parentBoard,
+    );
+    if (requestedParentBoardId && !isPrivilegedContentActor(requester)) {
+      throw new ForbiddenException(
+        'End users can only create boards at communicator root level.',
+      );
+    }
+    if (!isPrivilegedContentActor(requester) && isOfficialBoard(payload)) {
+      throw new ForbiddenException('Official/system boards cannot be created here.');
+    }
+    if (requestedParentBoardId) {
+      const parentBoard = await this.boardRepository.findById(requestedParentBoardId);
+      if (!parentBoard || String(parentBoard.email || '').trim() !== payload.email) {
+        throw new BadRequestException('A folder board must belong to the requested user.');
+      }
+    }
+
     const publicSourceId = normalizeOptionalString(payload?.publicSourceId);
     const sourceBoardId = normalizeOptionalString(payload?.sourceBoardId);
 
@@ -187,6 +219,9 @@ export class BoardService {
   ): Promise<BoardModel> {
     const user = await this.legacyAuthService.getAuthorizedUser(req);
     const board = await this.findBoardById(id);
+    if (isOfficialBoard(board) && !isPrivilegedContentActor(user)) {
+      throw new ForbiddenException('Official/system boards cannot be modified by end users.');
+    }
     const nextEmail = payload?.email || board.email;
     const nextIsPublic =
       payload?.isPublic !== undefined ? payload.isPublic : Boolean(board.isPublic);
@@ -237,6 +272,9 @@ export class BoardService {
   async deleteBoard(req: Request, id: string): Promise<BoardModel> {
     const user = await this.legacyAuthService.getAuthorizedUser(req);
     const board = await this.findBoardById(id);
+    if (isOfficialBoard(board) && !isPrivilegedContentActor(user)) {
+      throw new ForbiddenException('Official/system boards cannot be deleted by end users.');
+    }
     await this.authorizeBoardAccess(
       req,
       board.email,
