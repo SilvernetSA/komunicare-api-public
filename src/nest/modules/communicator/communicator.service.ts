@@ -10,6 +10,7 @@ import { Types } from 'mongoose';
 
 import { BoardPersistenceEntity } from '../../common/models/board.persistence-model';
 import { CommunicatorPersistenceEntity } from '../../common/models/communicator.persistence-model';
+import { withTransaction } from '../../common/with-transaction';
 import { normalizeCommunicatorCopySource } from '../../common/communicator-copy-source.util';
 import { sanitizeDefaultBoardsIncluded } from '../../common/default-boards-included.util';
 import {
@@ -26,12 +27,20 @@ import {
 import { CreateCommunicatorDto } from './dto/create-communicator.dto';
 import { ListCommunicatorsByEmailDto } from './dto/list-communicators-by-email.dto';
 import { UpdateCommunicatorDto } from './dto/update-communicator.dto';
+import { CreateCommunicatorBoardDto } from './dto/create-communicator-board.dto';
 import { CommunicatorRepository } from './communicator.repository';
 import {
   CommunicatorModel,
   CreateCommunicatorResponse,
   PaginatedCommunicatorModelResponse,
 } from './models/communicator.model';
+import {
+  buildBoardReferenceQuery,
+  indexBoardsByReference,
+  isOfficialBoard,
+  isOfficialCommunicator,
+  isPrivilegedContentActor,
+} from './communicator.helpers';
 
 const OFFICIAL_ROOT_BOARD_SET = new Set<string>(OFFICIAL_ROOT_BOARD_IDS);
 const CANONICAL_OFFICIAL_BOARD_IDS = new Set(['komunicare']);
