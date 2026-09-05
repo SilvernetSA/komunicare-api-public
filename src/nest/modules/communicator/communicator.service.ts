@@ -174,6 +174,7 @@ export class CommunicatorService {
     payload: CreateCommunicatorDto,
   ): Promise<CreateCommunicatorResponse> {
     const user = await this.legacyAuthService.getAuthorizedUser(req);
+    const isPrivileged = isPrivilegedContentActor(user);
     this.legacyAuthService.assertSameUserOrAdmin(
       user,
       payload.email,
@@ -258,6 +259,17 @@ export class CommunicatorService {
       copySource || copySourceCommunicatorId || publicSourceId,
     );
 
+    if (!isPrivileged && isOfficialCommunicator(payload) && !isCommunicatorCopy) {
+      throw new ForbiddenException(
+        'Official/system communicators can only be created through copy operations.',
+      );
+    }
+    if (!isPrivileged) {
+      await this.assertBoardReferencesOwnedByUser(payload.boards, payload.email, {
+        allowOfficial: isCommunicatorCopy,
+      });
+    }
+
     const normalizedPayload = {
       ...payload,
       defaultBoardsIncluded: sanitizeDefaultBoardsIncluded(
@@ -307,6 +319,10 @@ export class CommunicatorService {
   ): Promise<CommunicatorModel> {
     const user = await this.legacyAuthService.getAuthorizedUser(req);
     const communicator = await this.findCommunicatorById(id);
+    const isPrivileged = isPrivilegedContentActor(user);
+    if (isOfficialCommunicator(communicator) && !isPrivileged) {
+      throw new ForbiddenException('Official/system communicators cannot be modified by end users.');
+    }
 
     const nextEmail = payload.email || communicator.email;
     const nextCopySource =
@@ -427,6 +443,12 @@ export class CommunicatorService {
       throw new BadRequestException(
         `RootBoard '${rootBoard}' does not exist in boards: ${boards.join(', ')}`,
       );
+    }
+
+    if (payload.boards && !isPrivileged) {
+      await this.assertBoardReferencesOwnedByUser(boards, nextEmail, {
+        allowOfficial: isCommunicatorCopy,
+      });
     }
 
     const normalizedPayload: Record<string, unknown> = { ...payload };
@@ -628,6 +650,9 @@ export class CommunicatorService {
   ): Promise<CommunicatorModel> {
     const user = await this.legacyAuthService.getAuthorizedUser(req);
     const communicator = await this.findCommunicatorById(id);
+    if (isOfficialCommunicator(communicator) && !isPrivilegedContentActor(user)) {
+      throw new ForbiddenException('Official/system communicators cannot be deleted by end users.');
+    }
     await this.authorizeCommunicatorAccess(
       req,
       communicator.email,
@@ -720,6 +745,85 @@ export class CommunicatorService {
     }
 
     return communicator.toJSON() as CommunicatorModel;
+  }
+
+  async createBoardForCommunicator(
+    req: Request,
+    communicatorId: string,
+    payload: CreateCommunicatorBoardDto,
+  ): Promise<any> {
+    const user = await this.legacyAuthService.getAuthorizedUser(req);
+    const communicator = await this.findCommunicatorById(communicatorId);
+    const isPrivileged = isPrivilegedContentActor(user);
+
+    if (isOfficialCommunicator(communicator) && !isPrivileged) {
+      throw new ForbiddenException('Official/system communicators cannot be modified by end users.');
+    }
+    if (!isPrivileged && String(communicator.email || '').trim() !== user.email) {
+      throw new ForbiddenException('You can only create boards in your own communicator.');
+    }
+
+    const board = new BoardPersistenceEntity({
+      name: payload.name,
+      author: user.name || communicator.author,
+      email: communicator.email,
+      isPublic: false,
+      tiles: payload.tiles || [],
+      locale: payload.locale,
+      cellSize: payload.cellSize,
+    });
+
+    return withTransaction(async (session) => {
+      const savedBoard = await board.save({ session });
+      const boardId = String(savedBoard._id || savedBoard.id || '');
+      communicator.boards = Array.from(
+        new Set([...(communicator.boards || []), boardId]),
+      );
+      if (!communicator.rootBoard) communicator.rootBoard = boardId;
+      await communicator.save({ session });
+      return savedBoard.toJSON();
+    });
+  }
+
+  private async assertBoardReferencesOwnedByUser(
+    boardIds: string[],
+    email: string,
+    options: { allowOfficial: boolean },
+  ): Promise<void> {
+    const normalizedBoardIds = Array.from(
+      new Set(
+        (Array.isArray(boardIds) ? boardIds : [])
+          .map((boardId) => String(boardId || '').trim())
+          .filter(Boolean),
+      ),
+    );
+    if (!normalizedBoardIds.length) return;
+
+    const objectIds = normalizedBoardIds
+      .filter((boardId) => Types.ObjectId.isValid(boardId))
+      .map((boardId) => new Types.ObjectId(boardId));
+    const boards = await (BoardPersistenceEntity as any)
+      .find({
+        $or: [
+          ...(objectIds.length ? [{ _id: { $in: objectIds } }] : []),
+          { boardId: { $in: normalizedBoardIds } },
+          { id: { $in: normalizedBoardIds } },
+        ],
+      })
+      .lean()
+      .exec();
+    const boardsByReference = indexBoardsByReference(boards);
+
+    for (const boardId of normalizedBoardIds) {
+      const board = boardsByReference.get(boardId);
+      if (!board) {
+        throw new BadRequestException(`Board '${boardId}' does not exist.`);
+      }
+      if (options.allowOfficial && isOfficialBoard(board)) continue;
+      if (String(board.email || '').trim() !== String(email || '').trim()) {
+        throw new ForbiddenException(`Board '${boardId}' is owned by another user.`);
+      }
+    }
   }
 
   private async authorizeCommunicatorAccess(

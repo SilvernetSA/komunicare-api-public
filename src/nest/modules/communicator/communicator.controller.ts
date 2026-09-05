@@ -14,6 +14,7 @@ import { Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 
 import { BaseController } from '../../common/base.controller';
+import { CreateCommunicatorBoardDto } from './dto/create-communicator-board.dto';
 import {
   ApiErrorResponses,
   ApiPaginationQuery,
@@ -132,6 +133,22 @@ export class CommunicatorController extends BaseController {
       'createCommunicator',
       () => this.communicatorService.createCommunicator(req, payload),
       'Could not create communicator',
+    );
+  }
+
+  @Post(':id/boards')
+  @HttpCode(200)
+  @ApiSuccessResponse(Object, 'Root-level board created and attached')
+  @ApiErrorResponses('badRequest', 'forbidden', 'unauthorized', 'notFound', 'internal')
+  async createBoardForCommunicator(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() payload: CreateCommunicatorBoardDto,
+  ): Promise<any> {
+    return this.executeRequest(
+      'createBoardForCommunicator',
+      () => this.communicatorService.createBoardForCommunicator(req, id, payload),
+      'Could not create root-level board for communicator',
     );
   }
 
