@@ -15,7 +15,7 @@ Backend API for the Komunicare AAC platform. This service powers the public comm
 ## Prerequisites
 
 - Node.js LTS
-- npm
+- pnpm (the repository commits `pnpm-lock.yaml`)
 - MongoDB reachable from your local environment
 - Docker Desktop or Docker Engine if you want the containerized local stack
 
@@ -24,7 +24,7 @@ Backend API for the Komunicare AAC platform. This service powers the public comm
 No real environment files are committed to this repository.
 
 - For Docker-based local runs, create a local `.env.local` file. `docker-compose.local.yml` loads it automatically.
-- For direct `npm run dev`, export the same variables in your shell or create a local `.env` file. The app boots through `dotenv-defaults/config`, so standard dotenv loading applies.
+- For direct `pnpm run dev`, export the same variables in your shell or create a local `.env` file. The app boots through `dotenv-defaults/config`, so standard dotenv loading applies.
 
 ### Minimum local variables
 
@@ -54,7 +54,7 @@ Only set these when you need the related integrations locally:
 ### Direct Node.js workflow
 
 ```bash
-npm install
+pnpm install --frozen-lockfile
 npm run dev
 ```
 
@@ -89,7 +89,7 @@ npm run stop-docker
 
 ```bash
 npm run build
-npm test
+pnpm test
 ```
 
 ## GitHub Actions deployment configuration
